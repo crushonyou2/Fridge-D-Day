@@ -7,7 +7,6 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Android](https://img.shields.io/badge/Android-8.0+-3DDC84?logo=android&logoColor=white)](https://www.android.com/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-1.5.10-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [한국어](#-한국어) | [English](#-english)
 
@@ -399,17 +398,11 @@ Fridge-D-Day/
 
 ---
 
-### 📝 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
-
----
-
 ### 👤 개발자
 
 **Jigwan Joe**
 - Email: crushonyou223@gmail.com
-- GitHub: [@yourusername](https://github.com/yourusername)
+- GitHub: [@crushonyou2](https://github.com/crushonyou2)
 
 ---
 
@@ -609,17 +602,11 @@ As a **Physical AI application project**, it leverages smartphone cameras and ML
 
 ---
 
-### 📝 License
-
-This project is distributed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
 ### 👤 Developer
 
 **Jigwan Joe**
 - Email: crushonyou223@gmail.com
-- GitHub: [@yourusername](https://github.com/yourusername)
+- GitHub: [@crushonyou2](https://github.com/crushonyou2)
 
 ---
 

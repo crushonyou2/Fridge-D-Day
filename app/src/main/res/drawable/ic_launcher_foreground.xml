@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.5"
+        android:scaleY="0.5"
+        android:translateX="27"
+        android:translateY="27">
+        <!-- Refrigerator body -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M20,10 L88,10 C91,10 94,13 94,16 L94,92 C94,95 91,98 88,98 L20,98 C17,98 14,95 14,92 L14,16 C14,13 17,10 20,10 Z"/>
+
+        <!-- Door separator line -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M14,54 L94,54 L94,58 L14,58 Z"/>
+
+        <!-- Top door handle -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M24,28 L32,28 L32,38 L24,38 Z"/>
+
+        <!-- Bottom door handle -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M24,68 L32,68 L32,78 L24,78 Z"/>
+
+        <!-- Fresh leaf decoration (top right with equal spacing) -->
+        <path
+            android:fillColor="#81C784"
+            android:pathData="M72,18 C72,18 79,14 86,20 C92,26 89,34 83,32 C77,30 70,26 72,18 Z"/>
+        <path
+            android:fillColor="#66BB6A"
+            android:pathData="M76,20 C76,20 81,18 86,23 C90,28 88,32 84,31 C80,30 74,26 76,20 Z"/>
+    </group>
+</vector>

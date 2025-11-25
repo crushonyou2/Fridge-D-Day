@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(tree:*)",
+      "Bash(./gradlew clean:*)",
+      "Bash(bash gradlew assembleDebug --console=plain)",
+      "Bash(java -version:*)",
+      "Bash(cat:*)",
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(bash gradlew:*)",
+      "Bash(cmd.exe /c gradlew.bat assembleDebug)",
+      "Bash(cmd.exe /c \"gradlew.bat clean --console=plain 2>&1 | head -20\")",
+      "Bash(dir:*)",
+      "Bash(magick:*)",
+      "Bash(inkscape:*)",
+      "Bash(cmd.exe /c \"gradlew.bat clean bundleRelease\")",
+      "Bash(cmd.exe /c:*)",
+      "Bash(./gradlew bundleRelease:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

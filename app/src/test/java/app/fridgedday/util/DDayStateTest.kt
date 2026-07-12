@@ -12,20 +12,22 @@ class DDayStateTest {
     }
 
     @Test
-    fun `getDDayState returns WARNING for 1 to 7 days`() {
+    fun `getDDayState returns WARNING for 2 to 7 days`() {
         val result1 = getDDayState(daysUntil = 7)
-        val result2 = getDDayState(daysUntil = 1)
+        val result2 = getDDayState(daysUntil = 2)
 
         assertEquals(DDayState.WARNING, result1)
         assertEquals(DDayState.WARNING, result2)
     }
 
     @Test
-    fun `getDDayState returns EXPIRED for 0 or negative days`() {
-        val result1 = getDDayState(daysUntil = 0)
-        val result2 = getDDayState(daysUntil = -5)
+    fun `getDDayState returns EXPIRED for 1 day or less`() {
+        val result1 = getDDayState(daysUntil = 1)
+        val result2 = getDDayState(daysUntil = 0)
+        val result3 = getDDayState(daysUntil = -5)
 
         assertEquals(DDayState.EXPIRED, result1)
         assertEquals(DDayState.EXPIRED, result2)
+        assertEquals(DDayState.EXPIRED, result3)
     }
 }

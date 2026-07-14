@@ -1,0 +1,37 @@
+name: 베타 테스트 피드백
+description: 오늘도 신선 사용 중 발견한 불편이나 오류를 알려주세요.
+title: "[Beta] "
+labels: [beta-feedback]
+body:
+  - type: markdown
+    attributes:
+      value: 식품 사진이나 개인 식품 기록은 첨부하지 마세요.
+  - type: input
+    id: environment
+    attributes:
+      label: 실행 환경
+      description: 휴대폰 모델과 Android 버전을 적어주세요.
+    validations:
+      required: true
+  - type: dropdown
+    id: ocr_success
+    attributes:
+      label: 라벨 2개의 날짜 자동입력 성공 개수
+      options:
+        - 0개
+        - 1개
+        - 2개
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: 불편하거나 잘못 동작한 부분
+      description: 문제가 발생하기 직전 수행한 동작을 순서대로 적어주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 개선 제안
+      description: 가장 먼저 개선했으면 하는 점을 알려주세요.

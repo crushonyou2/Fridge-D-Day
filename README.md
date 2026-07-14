@@ -65,7 +65,10 @@ OCR은 조명과 라벨 방향에 따라 결과가 달라질 수 있습니다. �
 - 네트워크 권한 없이 온디바이스 데이터 처리
 - `DateUtils`, `DDayState` 단위 테스트
 - Room DAO 및 홈 화면 계측 테스트
+- Android 의존성과 분리한 OCR 날짜 파서 단위 테스트 및 GitHub Actions 품질 게이트
 - Target SDK 35, ProGuard 적용
+
+OCR 정확도는 아직 성과 수치로 주장하지 않습니다. 동일한 사진 표본으로 버전 간 품질을 비교할 수 있도록 [OCR 벤치마크 기준](docs/qa/OCR_BENCHMARK.md)과 기록 스키마를 마련했습니다.
 
 ## 프로젝트 구조
 

@@ -1,1 +1,1 @@
-sample_id,expected_date,predicted_date,exact_match,detected,failure_type,lighting,orientation,material,date_format,evaluation_date,base_rotation,app_version,device_model
+sample_id,image_sha256,expected_date,predicted_date,exact_match,detected,failure_type,lighting,orientation,material,date_format,print_quality,independence_key,cohort,evaluation_date,base_rotation,app_version,device_model

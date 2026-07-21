@@ -1,11 +1,16 @@
 param(
     [string]$RunName = "current",
     [string]$BaselineCsv = "",
+    [string]$TargetFailureType = "",
     [int]$SampleLimit = 0,
-    [string]$DatasetDir = "qa-private\ocr-benchmark"
+    [string]$DatasetDir = "qa-private\ocr-benchmark",
+    [switch]$ReleaseBaseline,
+    [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = "Stop"
+if ($RunName -notmatch "^[A-Za-z0-9_-]+$") { throw "RunName may contain only letters, numbers, '_' and '-': $RunName" }
+if ($TargetFailureType -and -not $BaselineCsv) { throw "TargetFailureType requires BaselineCsv." }
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $privateRoot = if ([IO.Path]::IsPathRooted($DatasetDir)) {
     [IO.Path]::GetFullPath($DatasetDir)
@@ -27,11 +32,104 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
 
 $samples = @(Import-Csv -LiteralPath $manifestPath)
 if ($samples.Count -eq 0) { throw "The private manifest has no samples." }
+$requiredColumns = @(
+    "sample_id",
+    "image_file",
+    "expected_date",
+    "lighting",
+    "orientation",
+    "material",
+    "date_format",
+    "base_rotation",
+    "evaluation_date"
+)
+$manifestColumns = @($samples[0].PSObject.Properties.Name)
+$missingColumns = @($requiredColumns | Where-Object { $_ -notin $manifestColumns })
+if ($missingColumns) { throw "Manifest is missing required columns: $($missingColumns -join ', ')" }
+
 $duplicates = $samples | Group-Object sample_id | Where-Object Count -gt 1
 if ($duplicates) { throw "Duplicate sample_id: $($duplicates.Name -join ', ')" }
+$duplicateImageFiles = $samples | Group-Object image_file | Where-Object Count -gt 1
+if ($duplicateImageFiles) { throw "Duplicate image_file: $($duplicateImageFiles.Name -join ', ')" }
+
+$imageHashes = @{}
 foreach ($sample in $samples) {
-    $imagePath = Join-Path $privateRoot $sample.image_file
+    foreach ($column in $requiredColumns) {
+        if ([string]::IsNullOrWhiteSpace($sample.$column)) {
+            throw "Empty $column for $($sample.sample_id)."
+        }
+    }
+    if ($sample.base_rotation -notin @("0", "90", "180", "270")) {
+        throw "Invalid base_rotation for $($sample.sample_id): $($sample.base_rotation)"
+    }
+    try {
+        [void][DateTime]::ParseExact($sample.expected_date, "yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture)
+        [void][DateTime]::ParseExact($sample.evaluation_date, "yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture)
+    } catch {
+        throw "Dates must use YYYY-MM-DD for $($sample.sample_id): expected=$($sample.expected_date), evaluation=$($sample.evaluation_date)"
+    }
+
+    $imagePath = [IO.Path]::GetFullPath((Join-Path $privateRoot $sample.image_file))
+    if (-not $imagePath.StartsWith(($privateRoot.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase)) {
+        throw "image_file must stay inside DatasetDir for $($sample.sample_id): $($sample.image_file)"
+    }
     if (-not (Test-Path -LiteralPath $imagePath)) { throw "Missing image for $($sample.sample_id): $imagePath" }
+    $imageHashes[$sample.sample_id] = (Get-FileHash -LiteralPath $imagePath -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+$duplicateHashes = @($imageHashes.GetEnumerator() | Group-Object Value | Where-Object Count -gt 1)
+if ($duplicateHashes) {
+    $duplicateIds = $duplicateHashes | ForEach-Object { ($_.Group.Name | Sort-Object) -join "/" }
+    throw "Duplicate image content detected: $($duplicateIds -join ', ')"
+}
+
+$releaseColumns = @("print_quality", "independence_key", "cohort")
+$missingReleaseColumns = @($releaseColumns | Where-Object { $_ -notin $manifestColumns })
+if ($ReleaseBaseline -and $samples.Count -lt 50) {
+    throw "A v1.1 release baseline requires at least 50 independent samples; found $($samples.Count)."
+}
+if ($ReleaseBaseline -and $missingReleaseColumns) {
+    throw "A 50+ release baseline requires columns: $($missingReleaseColumns -join ', ')"
+}
+if (-not $missingReleaseColumns) {
+    foreach ($sample in $samples) {
+        foreach ($column in $releaseColumns) {
+            if ([string]::IsNullOrWhiteSpace($sample.$column)) {
+                if ($ReleaseBaseline) { throw "Empty $column for release sample $($sample.sample_id)." }
+            }
+        }
+    }
+    $duplicateIndependenceKeys = @($samples | Where-Object independence_key | Group-Object independence_key | Where-Object Count -gt 1)
+    if ($duplicateIndependenceKeys) {
+        throw "Non-independent samples share independence_key: $($duplicateIndependenceKeys.Name -join ', ')"
+    }
+}
+if ($ReleaseBaseline) {
+    $unspecifiedMaterial = @($samples | Where-Object { $_.material -match "unspecified|mixed_or" })
+    if ($unspecifiedMaterial) {
+        throw "A release baseline requires classified material; unresolved samples: $($unspecifiedMaterial.sample_id -join ', ')"
+    }
+    $existingCount = @($samples | Where-Object cohort -eq "existing_20").Count
+    $newCount = @($samples | Where-Object cohort -eq "new_30_plus").Count
+    $unsupportedCohorts = @($samples | Where-Object { $_.cohort -notin @("existing_20", "new_30_plus") })
+    if ($existingCount -ne 20 -or $newCount -lt 30 -or $unsupportedCohorts) {
+        throw "A release baseline requires cohort existing_20=20 and new_30_plus>=30; found existing_20=$existingCount new_30_plus=$newCount."
+    }
+}
+
+$hasHangulDate = @($samples | Where-Object { $_.date_format -match "hangul|korean|년|월|일" }).Count -gt 0
+$hasCompactDate = @($samples | Where-Object { $_.date_format -match "compact|yyyymmdd|yymmdd" }).Count -gt 0
+Write-Host "[dataset] samples=$($samples.Count) unique_sample_ids=$($samples.Count) unique_images=$($imageHashes.Count) release_baseline=$ReleaseBaseline"
+Write-Host "[coverage] hangul_date=$hasHangulDate compact_date=$hasCompactDate"
+if ($samples.Count -lt 50) { Write-Warning "Fewer than 50 independent samples: validation is not a v1.1 release baseline." }
+if (-not $ReleaseBaseline -and $samples.Count -ge 50 -and $missingReleaseColumns) {
+    Write-Warning "This 50+ historical dataset lacks release columns ($($missingReleaseColumns -join ', ')); rerun with a classified Korean manifest and -ReleaseBaseline for v1.1."
+}
+if (-not $hasHangulDate) { Write-Warning "No Korean year/month/day date format is classified in the manifest." }
+if (-not $hasCompactDate) { Write-Warning "No compact YYYYMMDD or YYMMDD date format is classified in the manifest." }
+if ($ValidateOnly) {
+    Write-Host "Dataset validation passed: $manifestPath"
+    return
 }
 
 $localProperties = Get-Content -LiteralPath (Join-Path $repoRoot "local.properties") -Raw
@@ -75,14 +173,35 @@ function Show-Metrics([string]$CsvPath, [string]$Label) {
     Write-Host "[$Label] samples=$count exact=$exact/$count ($([math]::Round(100 * $exact / $count, 2))%) detected=$detected/$count ($([math]::Round(100 * $detected / $count, 2))%)"
     if ($count -lt 50) { Write-Warning "Fewer than 50 samples: this run is not a v1.1 release baseline." }
 
-    foreach ($dimension in @("failure_type", "lighting", "orientation", "material", "date_format")) {
+    $topFailures = @(
+        $rows |
+            Where-Object failure_type |
+            Group-Object failure_type |
+            Sort-Object @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true } |
+            Select-Object -First 3
+    )
+    Write-Host "  top_failure_types"
+    if ($topFailures.Count -eq 0) {
+        Write-Host "    none"
+    } else {
+        $topFailures | ForEach-Object { Write-Host "    $($_.Name): $($_.Count)" }
+    }
+
+    foreach ($dimension in @("failure_type", "cohort", "lighting", "orientation", "material", "date_format", "print_quality")) {
         Write-Host "  $dimension"
         $rows | Where-Object { $_.$dimension } | Group-Object -Property $dimension | Sort-Object Count -Descending | ForEach-Object {
             $failed = @($_.Group | Where-Object exact_match -ne "true").Count
             Write-Host "    $($_.Name): failures=$failed/$($_.Count) ($([math]::Round(100 * $failed / $_.Count, 2))%)"
         }
     }
-    return [PSCustomObject]@{ Count = $count; Exact = $exact; Detected = $detected; SampleIds = @($rows.sample_id | Sort-Object) }
+    return [PSCustomObject]@{
+        Count = $count
+        Exact = $exact
+        Detected = $detected
+        SampleIds = @($rows.sample_id | Sort-Object)
+        Rows = $rows
+        TopFailureType = if ($topFailures.Count -gt 0) { $topFailures[0].Name } else { "" }
+    }
 }
 
 $current = Show-Metrics -CsvPath $resultPath -Label $RunName
@@ -91,6 +210,45 @@ if ($BaselineCsv) {
     $baseline = Show-Metrics -CsvPath $baselinePath -Label "baseline"
     if ($baseline.Count -ne $current.Count) { throw "Regression comparison requires the same sample count." }
     if (Compare-Object $baseline.SampleIds $current.SampleIds) { throw "Regression comparison requires identical sample_id values." }
+    $identityColumns = @(
+        "image_sha256",
+        "expected_date",
+        "lighting",
+        "orientation",
+        "material",
+        "date_format",
+        "print_quality",
+        "independence_key",
+        "cohort",
+        "evaluation_date",
+        "base_rotation"
+    )
+    $currentById = @{}
+    $current.Rows | ForEach-Object { $currentById[$_.sample_id] = $_ }
+    foreach ($baselineRow in $baseline.Rows) {
+        $currentRow = $currentById[$baselineRow.sample_id]
+        foreach ($column in $identityColumns) {
+            if ($column -notin $baselineRow.PSObject.Properties.Name -or $column -notin $currentRow.PSObject.Properties.Name) {
+                throw "Regression CSV is missing identity column: $column"
+            }
+            if ($baselineRow.$column -ne $currentRow.$column) {
+                throw "Regression input changed for $($baselineRow.sample_id): $column"
+            }
+        }
+    }
+    if ($current.Exact -lt $baseline.Exact) { throw "Exact-match regression: $($baseline.Exact) -> $($current.Exact)" }
+    if ($current.Detected -lt $baseline.Detected) { throw "Candidate-detection regression: $($baseline.Detected) -> $($current.Detected)" }
+    if ($TargetFailureType) {
+        if ($TargetFailureType -ne $baseline.TopFailureType) {
+            throw "TargetFailureType must be the baseline's largest failure type: expected '$($baseline.TopFailureType)', got '$TargetFailureType'."
+        }
+        $baselineTargetCount = @($baseline.Rows | Where-Object failure_type -eq $TargetFailureType).Count
+        $currentTargetCount = @($current.Rows | Where-Object failure_type -eq $TargetFailureType).Count
+        if ($currentTargetCount -ge $baselineTargetCount) {
+            throw "Target failure type did not improve: $TargetFailureType $baselineTargetCount -> $currentTargetCount"
+        }
+        Write-Host "[target-improvement] $TargetFailureType=$baselineTargetCount->$currentTargetCount"
+    }
     Write-Host "[delta] exact=$($current.Exact - $baseline.Exact) detected=$($current.Detected - $baseline.Detected)"
 }
 

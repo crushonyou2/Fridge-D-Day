@@ -16,6 +16,26 @@
 
 Google Play·원스토어 최종 제출은 수행하지 않았다. 공개 표본은 영어권 포장 중심이므로 한국 보완 세트 결과를 별도로 병기하며 두 결과를 합산해 하나의 정확도처럼 발표하지 않는다.
 
+## 독립 한국 50장 확장 준비 상태 (2026-07-21)
+
+- 코딩 정본: `C:\Users\joji\Documents\취준자료\project-repos\Fridge-D-Day`
+- 작업 브랜치/기준 커밋: `codex/fridge-ocr-qa-baseline` / `e8917ae`
+- 기존 한국 사진: manifest 20행, 파일 20개, SHA-256 고유값 20개, 동일 파일 중복 0건. 육안으로도 서로 다른 제품·포장임을 확인했다.
+- 새 한국 사진: 0장. 기존 20장과 독립성을 비교할 신규 입력이 아직 없다.
+- 기존 20장 분류 보완: 조명·각도에 더해 재질 9종, 인쇄 품질 6종, 고유 `independence_key`, `cohort=existing_20`을 로컬 manifest에 기록했다.
+- 누락 표기: 한글 `YYYY년 MM월 DD일`과 연속 숫자 `YYYYMMDD`·`YYMMDD` 표본이 없다.
+- 대표성 주의: `korean_012`는 설명 오버레이가 있는 이미지이고 `korean_017`은 여러 제품이 함께 보이는 가격표형 사진이다. 두 장은 원본 촬영 통제가 약한 한계로 최종 결과에 명시한다.
+
+따라서 이 상태에서는 한국 50장 정확도나 v1.1 배포 수치를 산출하지 않는다. 서로 다른 실제 제품 30장 이상과 사람이 확인한 날짜 정답이 들어온 뒤 아래 `-ReleaseBaseline` 검증을 통과해야 새 기준선을 실행한다.
+
+러너는 새 기준선에서 다음을 추가로 보장한다.
+
+- 파일 SHA-256과 `independence_key` 중복을 모두 거부한다.
+- 50장 이상, `existing_20=20`·`new_30_plus>=30`, 실제 재질, 인쇄 품질 분류를 릴리스 입력 조건으로 검사한다.
+- 결과 CSV에 이미지 SHA-256을 남기고 수정 전후 사진·정답·분류·평가일이 모두 같은지 비교한다.
+- 실패를 `ocr_error`, `no_text`, `no_date_candidate`, `candidate_out_of_window`, `wrong_date`로 분리하고 상위 3개를 출력한다.
+- 후보 탐지는 파서가 만든 날짜 후보가 한 개 이상인 경우로 계산한다. 과거 결과의 `predicted_date != null` 기준과 혼합 비교하지 않는다.
+
 ## 측정 데이터셋
 
 - 출처: Mendeley Data, [Food Packaging OCR Dataset v2](https://data.mendeley.com/datasets/3cpx2fmn3r/2), DOI `10.17632/3cpx2fmn3r.2`
@@ -118,10 +138,22 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
 | `orientation` | `upright`, `rotated_90`, `skewed` 등 라벨 방향 |
 | `material` | `paper`, `plastic`, `can`, `cap` 등 재질 |
 | `date_format` | 실제 인쇄 형식: `yyyy.mm.dd`, `yy.mm.dd`, `mm.dd`, `compact` 등 |
+| `print_quality` | `clear`, `low_contrast`, `faded`, `broken_inkjet`, `smudged`, `embossed` 등 인쇄 상태 |
+| `independence_key` | 같은 실제 제품·포장을 묶는 비식별 키. 릴리스 표본에서는 사진마다 고유해야 함 |
+| `cohort` | 기존 표본은 `existing_20`, 새 독립 표본은 `new_30_plus` |
 | `base_rotation` | 비트맵을 바로 세우는 회전값: `0`, `90`, `180`, `270` |
 | `evaluation_date` | 연도 없는 날짜 추론을 고정할 평가 기준일, `YYYY-MM-DD` |
 
 같은 사진은 같은 `sample_id`, 정답, 환경 라벨, `evaluation_date`를 유지한다. 실패 사진도 삭제하지 않는다.
+
+새 사진을 받은 직후 기기 없이 입력만 검증한다.
+
+```powershell
+.\scripts\run-ocr-benchmark.ps1 `
+  -DatasetDir qa-private/korean-labels-50 `
+  -ReleaseBaseline `
+  -ValidateOnly
+```
 
 ## 실행 환경과 명령
 
@@ -137,7 +169,10 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
 최초 기준선 측정:
 
 ```powershell
-.\scripts\run-ocr-benchmark.ps1 -RunName baseline-public-v2
+.\scripts\run-ocr-benchmark.ps1 `
+  -RunName korean-labels-50-baseline `
+  -DatasetDir qa-private/korean-labels-50 `
+  -ReleaseBaseline
 ```
 
 한국 보완 세트 측정:
@@ -152,8 +187,11 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
 
 ```powershell
 .\scripts\run-ocr-benchmark.ps1 `
-  -RunName after-day-first-parser `
-  -BaselineCsv qa-private/results/baseline-public-v2.csv
+  -RunName korean-labels-50-after `
+  -DatasetDir qa-private/korean-labels-50 `
+  -ReleaseBaseline `
+  -BaselineCsv qa-private/results/korean-labels-50-baseline.csv `
+  -TargetFailureType <수정_전_최상위_실패_유형>
 ```
 
 결과 회수 경로만 빠르게 확인할 때는 성과 측정에 포함하지 않는 스모크 옵션을 쓴다.
@@ -162,15 +200,20 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
 .\scripts\run-ocr-benchmark.ps1 -RunName smoke-output-path -SampleLimit 1
 ```
 
-러너는 manifest·사진 존재 여부, `sample_id` 중복, 연결 기기 수를 먼저 검사한다. 앱의 원본/90도·반전/반전 90도 OCR 경로를 실행하고 `qa-private/results/<run-name>.csv`를 만든다. 회귀 비교는 표본 수뿐 아니라 `sample_id` 집합까지 같아야 통과한다.
+러너는 manifest·사진 존재 여부, `sample_id`·파일 경로·SHA-256·독립성 키 중복, 연결 기기 수를 먼저 검사한다. 앱의 원본/90도·반전/반전 90도 OCR 경로를 실행하고 `qa-private/results/<run-name>.csv`를 만든다. 회귀 비교는 표본 수와 `sample_id`뿐 아니라 사진 해시·정답·모든 환경 분류·평가일까지 같아야 통과한다. 정확 일치와 후보 탐지가 하락하면 실패하며, `-TargetFailureType`은 수정 전 최상위 유형이어야 하고 건수가 실제로 줄어야 통과한다.
 
 ## 지표와 실패 분류
 
 - 정확 일치율 = `predicted_date == expected_date`인 사진 / 전체 사진
 - 날짜 후보 탐지율 = 날짜 후보를 하나 이상 반환한 사진 / 전체 사진
 - 환경별 실패율 = 해당 조명·방향·재질·표기 그룹에서 정확 일치하지 않은 사진 / 해당 그룹 전체
-- `no_candidate`: 날짜 후보를 반환하지 못함
-- `wrong_date`: 후보는 반환했지만 최종 선택 날짜가 정답과 다름
+- `ocr_error`: 네 가지 OCR 변형이 모두 처리 오류로 끝남
+- `no_text`: OCR 처리는 성공했지만 인식 문자열이 없음
+- `no_date_candidate`: 문자는 인식했지만 날짜 파서 후보가 없음
+- `candidate_out_of_window`: 날짜 후보는 있으나 평가일 허용 범위를 통과한 후보가 없음
+- `wrong_date`: 후보를 선택했지만 최종 날짜가 정답과 다름
+
+2026-07-14의 공개 61장·한국 20장 역사 결과는 종전 `no_candidate` 분류를 사용한다. 새 한국 50장 수정 전·후 결과는 위 세분화된 동일 러너 버전끼리만 비교한다.
 
 표본이 50장 미만이면 스크립트가 결과를 표시하되 v1.1 릴리스 기준선으로 인정하지 않는 경고를 낸다. 50장 이상이면 정확 일치율, 후보 탐지율, 실패 유형 및 조명·방향·재질·표기별 실패율을 모두 출력한다.
 

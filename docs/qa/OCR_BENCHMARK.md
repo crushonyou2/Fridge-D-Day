@@ -5,10 +5,11 @@
 ## 현재 상태 (2026-07-22)
 
 - 독립 한국 라벨 사진 55장(`existing_20=20`, `new_30_plus=35`)으로 v1.1 릴리스 기준선을 고정했다.
-- 수정 전: 정확 일치 37/55(67.27%), 후보 탐지 54/55(98.18%).
-- 수정 후: 정확 일치 40/55(72.73%), 후보 탐지 54/55(98.18%).
+- 수정 전(D-30): 정확 일치 37/55(67.27%), 아무 후보 탐지 54/55(98.18%).
+- 수정 후(D-30): 정확 일치 40/55(72.73%), 아무 후보 탐지 54/55(98.18%), 정답 후보 재현 43/55(78.18%).
+- 평가일 민감도(D-180): 정확 일치 39/55(70.91%), 아무 후보 탐지 54/55(98.18%), 정답 후보 재현 43/55(78.18%). D-30보다 1장 낮다.
 - 최대 실패 유형: `wrong_date` 14건 → 11건. 동일 입력 회귀의 정확 일치 +3, 탐지 변화 0이다.
-- Android 검증: 단위 테스트 18개, `lintDebug`, `assembleDebug`, `assembleRelease`, `assembleDebugAndroidTest`, 55장 instrumentation 및 수정 전후 회귀 게이트가 모두 통과했다.
+- Android 검증은 단위 테스트 19개, `lintDebug`, `assembleDebug`, `assembleRelease`, `assembleDebugAndroidTest`, D-30/D-180 instrumentation 및 새 스키마의 동일 55장 샘플별 회귀 게이트가 모두 통과했다.
 - v1.1 배포 가능 여부: **No-Go**. 자동화·회귀 게이트는 통과했지만 15/55(27.27%)가 여전히 오답이고, 한글 `YYYY년 MM월 DD일`과 연속 숫자 `YYYYMMDD`·`YYMMDD` 실사진이 표본에 없다.
 
 Google Play·원스토어 제출은 수행하지 않았다. 현재 원스토어 공개 버전은 유지하고, 다음 후보도 동일 기준선과 누락 형식 보완 표본으로 내부 검증한 뒤 한 번의 검증된 v1.1 업데이트로 배포한다. 긴급 장애·보안 수정만 별도 핫픽스로 취급한다.
@@ -18,7 +19,7 @@ Google Play·원스토어 제출은 수행하지 않았다. 현재 원스토어 
 - 코딩 정본/브랜치/수정 전 코드: `C:\Users\joji\Documents\취준자료\project-repos\Fridge-D-Day` / `codex/fridge-ocr-qa-baseline` / `5cd1402`.
 - 로컬 입력: `qa-private/korean-labels-55`. 실제 사진·manifest·sample별 결과는 `.gitignore`의 `qa-private/`에만 있다.
 - 기존 20장과 신규 HEIC 35장은 각각 SHA-256이 모두 고유하다. 변환본을 합친 55장도 해시가 모두 고유하고, 육안으로 서로 다른 제품·포장을 확인했다. 16×16 평균 해시의 최근접 쌍도 256비트 중 해밍 거리 54로 근접 중복 징후가 없었다.
-- HEIC는 원본을 보존한 채 `heif-convert 1.23.0` 품질 95 → FFmpeg `2025-10-05` 긴 변 2048px·JPEG q2로 변환했다. 원본/변환 SHA 매핑과 도구 버전은 로컬 `conversion-manifest.csv`, `conversion-metadata.txt`에 있다.
+- HEIC는 원본을 보존한 채 `heif-convert 1.23.0` 품질 95 → FFmpeg `2025-10-05` JPEG q2로 변환했다. 현재 55장은 `baseline-v1-width` 규격으로 폭을 2048px에 맞췄고, 세로 사진 33장은 긴 변이 2048px를 초과하며 최대 2730px다. 원본/변환 SHA 매핑과 도구 버전은 로컬 `conversion-manifest.csv`, `conversion-metadata.txt`에 있다.
 - `IMG_2375`는 사진의 `2026.08.20`과 기대값이 일치해 메모의 누락된 일자만 교정했다. `IMG_2388`은 사진에 `유통: 2023.12.23까지`가 명확해 제공된 `2022-12-13`을 `2023-12-23`으로 교정했다.
 - 누락 표기: 한글 `YYYY년 MM월 DD일`과 연속 숫자 `YYYYMMDD`·`YYMMDD` 실사진은 여전히 없다.
 - 대표성 주의: 기존 `korean_012`는 설명 오버레이가 있고 `korean_017`은 여러 제품이 함께 보이는 가격표형 사진이다.
@@ -36,10 +37,13 @@ Google Play·원스토어 제출은 수행하지 않았다. 현재 원스토어 
 
 ### 수정 전후 결과
 
+아래 정확 일치율은 각 정답을 평가일 30일 후에 두는 D-30 시나리오의 조건부 수치다. 파서가 평가일과 가까운 후보를 선택하므로 실사용 촬영 시점 정확도로 일반화하지 않는다. D-180 민감도에서는 정확 일치가 1장 감소했다. 실제 촬영일이 없는 과거 사진이므로 두 값 모두 시나리오 측정값이다.
+
 | 지표 | 수정 전 | 수정 후 | 변화 |
 |---|---:|---:|---:|
 | 정확 일치율 | 37/55 (67.27%) | 40/55 (72.73%) | +3장, +5.46%p |
-| 후보 탐지율 | 54/55 (98.18%) | 54/55 (98.18%) | 0 |
+| 아무 후보 탐지율 | 54/55 (98.18%) | 54/55 (98.18%) | 0 |
+| 정답 후보 재현율 | 미기록 | 43/55 (78.18%) | 새 스키마에서 측정 |
 | `wrong_date` | 14 | 11 | -3 |
 | `candidate_out_of_window` | 3 | 3 | 0 |
 | `no_text` | 1 | 1 | 0 |
@@ -78,23 +82,29 @@ Google Play·원스토어 제출은 수행하지 않았다. 현재 원스토어 
 
 실패 상위 3개는 수정 전 `wrong_date` 14, `candidate_out_of_window` 3, `no_text` 1이고 수정 후 `wrong_date` 11, `candidate_out_of_window` 3, `no_text` 1이다. 가장 큰 `wrong_date`를 겨냥해 OCR 전체 숫자 결합 후보의 신뢰도를 2~3에서 1로 낮추고, 실제 연속 6/8자리 compact 날짜만 신뢰도 2~3으로 분리했다. 구분자가 있거나 실제로 연속된 날짜가 있으면 제품번호·용량·시간에서 합성된 후보보다 우선한다.
 
-첫 수정안은 정확 일치 39/55로 개선됐지만 후보 탐지가 54→51로 하락해 회귀 게이트가 기각했다. 저신뢰 fallback을 유지한 최종안은 정확 일치 40/55, 탐지 54/55, `wrong_date` 11건으로 모든 회귀 조건을 통과했다.
+첫 수정안은 정확 일치 39/55로 개선됐지만 당시 v1 게이트의 아무 후보 탐지가 54→51로 하락해 기각됐다. 이후 리뷰에서 이 지표가 오답 후보 유지에 보상을 줄 수 있음을 확인했다. v2 게이트는 아무 후보 탐지를 진단값으로만 남기고, 샘플별 정확 일치 퇴행과 정답 후보 재현 퇴행을 차단한다. 저신뢰 fallback을 유지한 최종 파서의 D-30 결과는 정확 일치 40/55, 정답 후보 재현 43/55, `wrong_date` 11건이다.
 
 | 로컬 원시 결과 | SHA-256 |
 |---|---|
 | `qa-private/results/korean-labels-55-baseline.csv` | `f3da66618c7703cd9d12308d357800fdf7fe5e0e38fb412ca5a26a9e4d087894` |
 | `qa-private/results/korean-labels-55-after.csv` (기각안) | `edceb8feddac706a79e1551dffc9ba597e77d9adf3ae181898fdc10d308a7af7` |
 | `qa-private/results/korean-labels-55-after-final.csv` | `7f0e3babf757193eed1801236e8ed60ec29587abfd77c0376eb194e8a78cc210` |
+| `qa-private/results/korean-labels-55-v2-d30.csv` | `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff` |
+| `qa-private/results/korean-labels-55-v2-d180.csv` | `d896caa5702aaa559f1ba377131b1ebeca2e29fb86f85419931dfdc6253ff2f9` |
+| `qa-private/results/korean-labels-55-v2-d30-regression.csv` | `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff` |
 
-측정 환경은 `Medium_Phone_API_36.0` AVD(Android 16), `sdk_gphone64_x86_64`, 앱 `1.0.0-debug`다. 기준선 instrumentation은 9분 17초, 최종 회귀는 9분 1초였다.
+측정 환경은 `Medium_Phone_API_36.0` AVD(Android 16), `sdk_gphone64_x86_64`, 앱 `1.0.0-debug`다. 역사 기준선 instrumentation은 9분 17초, 최종 파서 회귀는 9분 1초였고, v2 스키마 D-30·D-180 측정은 각각 9분 3초·8분 33초였다. 새 스키마 D-30 동일 표본 회귀는 8분 26초에 통과했고 기준선과 결과 파일 해시까지 같았다.
 
 러너는 새 기준선에서 다음을 추가로 보장한다.
 
 - 파일 SHA-256과 `independence_key` 중복을 모두 거부한다.
 - 50장 이상, `existing_20=20`·`new_30_plus>=30`, 실제 재질, 인쇄 품질 분류를 릴리스 입력 조건으로 검사한다.
 - 결과 CSV에 이미지 SHA-256을 남기고 수정 전후 사진·정답·분류·평가일이 모두 같은지 비교한다.
+- 실행 시작 이후 새로 생성된 CSV만 결과로 인정한다.
+- 아무 후보 탐지와 정답 후보 재현을 분리하고 OCR 실패 변형 수를 기록한다.
+- 전체 합계뿐 아니라 샘플별 정확 일치와 정답 후보의 퇴행도 거부한다.
 - 실패를 `ocr_error`, `no_text`, `no_date_candidate`, `candidate_out_of_window`, `wrong_date`로 분리하고 상위 3개를 출력한다.
-- 후보 탐지는 파서가 만든 날짜 후보가 한 개 이상인 경우로 계산한다. 과거 결과의 `predicted_date != null` 기준과 혼합 비교하지 않는다.
+- 아무 후보 탐지는 파서가 만든 날짜 후보가 한 개 이상인 경우다. 오답 후보도 포함하므로 품질 게이트로 쓰지 않는다. 정답 후보 재현은 `expected_date`가 후보 날짜 집합에 실제 포함된 경우다.
 
 ## 측정 데이터셋
 
@@ -215,14 +225,26 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
   -ValidateOnly
 ```
 
-HEIC 원본을 보존하면서 동일한 파생 JPEG를 다시 만든다. `heif-convert`와 `ffmpeg`가 PATH에 있어야 한다.
+HEIC 원본을 보존하면서 현재 55장의 파생 JPEG를 재현한다. `baseline-v1-width`는 폭 2048px인 기존 기준선 규격이므로 이름과 출력 특성을 그대로 보존한다. `heif-convert`와 `ffmpeg`가 PATH에 있어야 한다.
 
 ```powershell
 .\scripts\convert-heic-ocr-dataset.ps1 `
   -SourceDir qa-private/korean-lables-new/images `
   -OutputDir qa-private/korean-labels-55/images `
   -MaxLongEdge 2048 `
-  -JpegQuality 2
+  -JpegQuality 2 `
+  -ConversionProfile baseline-v1-width
+```
+
+새 데이터셋은 업스케일 없이 실제 긴 변을 제한하는 v2 규격을 쓴다. 기존 55장에 이 명령을 덮어쓰면 이미지 해시가 바뀌므로 별도 출력 경로와 새 기준선을 사용한다.
+
+```powershell
+.\scripts\convert-heic-ocr-dataset.ps1 `
+  -SourceDir qa-private/korean-lables-new/images `
+  -OutputDir qa-private/korean-labels-v2/images `
+  -MaxLongEdge 2048 `
+  -JpegQuality 2 `
+  -ConversionProfile max-long-edge-v2
 ```
 
 ## 실행 환경과 명령
@@ -236,13 +258,29 @@ HEIC 원본을 보존하면서 동일한 파생 JPEG를 다시 만든다. `heif-
   -Tasks @("testDebugUnitTest","lintDebug","assembleDebug","assembleRelease","assembleDebugAndroidTest")
 ```
 
-최초 기준선 측정:
+역사 기준선 측정 명령은 아래와 같다. 이 결과는 레거시 스키마이므로 현재 러너의 회귀 비교 입력으로 다시 사용하지 않는다.
 
 ```powershell
 .\scripts\run-ocr-benchmark.ps1 `
   -RunName korean-labels-55-baseline `
   -DatasetDir qa-private/korean-labels-55 `
   -ReleaseBaseline
+```
+
+현재 파서의 D-30 새 스키마 기준선과 D-180 민감도를 측정한다.
+
+```powershell
+.\scripts\run-ocr-benchmark.ps1 `
+  -RunName korean-labels-55-v2-d30 `
+  -DatasetDir qa-private/korean-labels-55 `
+  -ReleaseBaseline `
+  -EvaluationOffsetDays 30
+
+.\scripts\run-ocr-benchmark.ps1 `
+  -RunName korean-labels-55-v2-d180 `
+  -DatasetDir qa-private/korean-labels-55 `
+  -ReleaseBaseline `
+  -EvaluationOffsetDays 180
 ```
 
 한국 보완 세트 측정:
@@ -253,14 +291,15 @@ HEIC 원본을 보존하면서 동일한 파생 JPEG를 다시 만든다. `heif-
   -DatasetDir qa-private/korean-labels
 ```
 
-가장 큰 실패 유형 하나만 수정한 뒤 동일 표본 회귀:
+현재 스키마에서 가장 큰 실패 유형 하나만 수정한 뒤 동일 D-30 표본 회귀:
 
 ```powershell
 .\scripts\run-ocr-benchmark.ps1 `
-  -RunName korean-labels-55-after-final `
+  -RunName korean-labels-55-v2-d30-after-next-fix `
   -DatasetDir qa-private/korean-labels-55 `
   -ReleaseBaseline `
-  -BaselineCsv qa-private/results/korean-labels-55-baseline.csv `
+  -EvaluationOffsetDays 30 `
+  -BaselineCsv qa-private/results/korean-labels-55-v2-d30.csv `
   -TargetFailureType wrong_date
 ```
 
@@ -270,12 +309,14 @@ HEIC 원본을 보존하면서 동일한 파생 JPEG를 다시 만든다. `heif-
 .\scripts\run-ocr-benchmark.ps1 -RunName smoke-output-path -SampleLimit 1
 ```
 
-러너는 manifest·사진 존재 여부, `sample_id`·파일 경로·SHA-256·독립성 키 중복, 연결 기기 수를 먼저 검사한다. 앱의 원본/90도·반전/반전 90도 OCR 경로를 실행하고 `qa-private/results/<run-name>.csv`를 만든다. 회귀 비교는 표본 수와 `sample_id`뿐 아니라 사진 해시·정답·모든 환경 분류·평가일까지 같아야 통과한다. 정확 일치와 후보 탐지가 하락하면 실패하며, `-TargetFailureType`은 수정 전 최상위 유형이어야 하고 건수가 실제로 줄어야 통과한다.
+러너는 manifest·사진 존재 여부, `sample_id`·파일 경로·SHA-256·독립성 키 중복, 연결 기기 수를 먼저 검사한다. 앱의 원본/90도·반전/반전 90도 OCR 경로를 실행하고 `qa-private/results/<run-name>.csv`를 만든다. 회귀 비교는 표본 수와 `sample_id`뿐 아니라 사진 해시·정답·모든 환경 분류·평가일·평가 시나리오까지 같아야 통과한다. 전체 정확 일치와 정답 후보 재현이 하락하거나 기존 정답/정답 후보 샘플 하나라도 퇴행하면 실패한다. `-TargetFailureType`은 수정 전 최상위 유형이어야 하고 건수가 실제로 줄어야 통과한다. 아무 후보 탐지는 진단값으로만 출력한다.
 
 ## 지표와 실패 분류
 
 - 정확 일치율 = `predicted_date == expected_date`인 사진 / 전체 사진
-- 날짜 후보 탐지율 = 날짜 후보를 하나 이상 반환한 사진 / 전체 사진
+- 아무 후보 탐지율 = 정답 여부와 무관하게 날짜 후보를 하나 이상 반환한 사진 / 전체 사진
+- 정답 후보 재현율 = `expected_date`가 OCR·파서 후보 날짜 집합에 포함된 사진 / 전체 사진
+- OCR 실패 변형 수 = 원본·90도·반전·반전 90도 중 인식 예외가 발생한 총 변형 수
 - 환경별 실패율 = 해당 조명·방향·재질·표기 그룹에서 정확 일치하지 않은 사진 / 해당 그룹 전체
 - `ocr_error`: 네 가지 OCR 변형이 모두 처리 오류로 끝남
 - `no_text`: OCR 처리는 성공했지만 인식 문자열이 없음
@@ -283,9 +324,9 @@ HEIC 원본을 보존하면서 동일한 파생 JPEG를 다시 만든다. `heif-
 - `candidate_out_of_window`: 날짜 후보는 있으나 평가일 허용 범위를 통과한 후보가 없음
 - `wrong_date`: 후보를 선택했지만 최종 날짜가 정답과 다름
 
-2026-07-14의 공개 61장·한국 20장 역사 결과는 종전 `no_candidate` 분류를 사용한다. 새 한국 55장 수정 전·후 결과는 위 세분화된 동일 러너 버전끼리만 비교한다.
+2026-07-14의 공개 61장·한국 20장 역사 결과와 초기 한국 55장 결과는 종전 스키마를 사용한다. 현재 러너는 정답 후보·실패 변형·평가 시나리오 열이 없는 레거시 CSV를 회귀 입력으로 거부하며, `korean-labels-55-v2-d30.csv`부터 동일 스키마끼리만 비교한다.
 
-표본이 50장 미만이면 스크립트가 결과를 표시하되 v1.1 릴리스 기준선으로 인정하지 않는 경고를 낸다. 50장 이상이면 정확 일치율, 후보 탐지율, 실패 유형 및 조명·방향·재질·표기별 실패율을 모두 출력한다.
+표본이 50장 미만이면 스크립트가 결과를 표시하되 v1.1 릴리스 기준선으로 인정하지 않는 경고를 낸다. 50장 이상이면 정확 일치율, 아무 후보 탐지율, 정답 후보 재현율, OCR 실패 변형 수, 실패 유형 및 조명·방향·재질·표기별 실패율을 모두 출력한다.
 
 ## 수정과 배포 판정 규칙
 
@@ -293,7 +334,7 @@ HEIC 원본을 보존하면서 동일한 파생 JPEG를 다시 만든다. `heif-
 2. 실패 건수를 `failure_type`으로 집계해 가장 큰 유형 하나를 선택한다.
 3. 그 유형만 겨냥한 최소 변경을 한다. 측정 전에는 파서 개선을 추측해 적용하지 않는다.
 4. 같은 기기·같은 사진·같은 manifest로 다시 실행한다.
-5. 전체 정확 일치·후보 탐지가 하락하지 않고 대상 실패 유형이 개선됐는지 CSV 차이로 확인한다.
+5. 전체 정확 일치·정답 후보 재현이 하락하지 않고, 개별 정답·정답 후보 퇴행이 없으며, 대상 실패 유형이 개선됐는지 CSV 차이로 확인한다.
 6. 단위 테스트·lint·debug 빌드가 모두 통과하고 목표 사용자 라벨의 대표성이 확보돼야 v1.1 배포 가능으로 판정한다.
 
 실제 전후 수치는 이 문서의 현재 상태에 기록하되, 사진·sample별 정답·원시 결과는 계속 `qa-private/`에만 둔다. Google Play 또는 원스토어 제출은 이 절차에 포함하지 않는다.
@@ -302,6 +343,8 @@ HEIC 원본을 보존하면서 동일한 파생 JPEG를 다시 만든다. `heif-
 
 - 공개 61장은 50장 판정선을 충족하지만 영어권·일 우선 표기가 많아 한국 유통기한 라벨을 대표하지 않는다.
 - 한국 55장은 독립 릴리스 기준선이지만 정확 일치가 72.73%여서 자동 입력 오답 15장을 사용자에게 그대로 노출할 위험이 남는다.
+- 72.73%는 D-30 조건부 결과다. D-180은 70.91%였고 두 조건 모두 실제 촬영일을 대신하지 못한다. 실제 촬영일을 기록한 신규 표본이나 추가 평가 시나리오가 필요하다.
+- 동일 confidence 후보 중 평가일과 가장 가까운 날짜를 선택하므로 제조일자와 소비기한이 함께 인식되면 제조일자를 고를 수 있다. 다음 파서 변경은 원시 후보와 키워드 근접도를 기록한 뒤 재선정한다.
 - 다음 확장 시 한글 `YYYY년 MM월 DD일`, 연속 숫자 `YYYYMMDD`·`YYMMDD` 실사진을 반드시 포함한다. 현재 수치로 이 형식의 품질을 추정하지 않는다.
 - 잔여 실패는 clear_dot_matrix 8/16, embossed_low_contrast 3/4, dark 2/2, 연도 없는 `MM.DD` 2/2에 집중된다. 다음 변경은 새 기준선을 보존한 채 다시 가장 큰 실패 원인 하나로 제한한다.
 - `korean_012`의 설명 오버레이와 `korean_017`의 가격표형 다중 제품 구도는 실제 카메라 촬영 대표성의 한계다.

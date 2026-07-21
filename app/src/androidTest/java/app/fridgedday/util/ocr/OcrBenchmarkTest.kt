@@ -28,6 +28,12 @@ class OcrBenchmarkTest {
 
         val allSamples = manifest.drop(1).filter { it.isNotBlank() }.map { parseSample(header, it) }
         val sampleLimit = InstrumentationRegistry.getArguments().getString("sampleLimit")?.toIntOrNull() ?: 0
+        val evaluationOffsetDays = InstrumentationRegistry.getArguments()
+            .getString("evaluationOffsetDays")
+            ?.toLongOrNull()
+        require(evaluationOffsetDays == null || evaluationOffsetDays > 0) {
+            "evaluationOffsetDays must be a positive integer"
+        }
         val samples = if (sampleLimit > 0) allSamples.take(sampleLimit) else allSamples
         assertTrue("sample_id values must be unique", samples.map { it.sampleId }.distinct().size == samples.size)
 
@@ -36,16 +42,23 @@ class OcrBenchmarkTest {
             val imageBytes = assets.open(sample.imageFile).use { it.readBytes() }
             val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
             assertNotNull("Cannot decode ${sample.imageFile} for ${sample.sampleId}", bitmap)
+            val evaluationDate = evaluationOffsetDays
+                ?.let { sample.expectedDate.minusDays(it) }
+                ?: sample.evaluationDate
+            val evaluationScenario = evaluationOffsetDays
+                ?.let { "expected_minus_${it}d" }
+                ?: "manifest"
 
             val evaluation = TextRecognitionHelper.evaluateExpiryDate(
                 bitmap = bitmap!!,
                 baseRotation = sample.baseRotation,
-                today = sample.evaluationDate,
+                today = evaluationDate,
             )
             bitmap.recycle()
 
             val predicted = evaluation.selectedDate
             val detected = evaluation.candidateCount > 0
+            val expectedCandidateDetected = sample.expectedDate in evaluation.candidateDates
             val exactMatch = predicted == sample.expectedDate
             val failureType = when {
                 exactMatch -> ""
@@ -62,6 +75,9 @@ class OcrBenchmarkTest {
                 predicted ?: "",
                 exactMatch,
                 detected,
+                expectedCandidateDetected,
+                evaluation.candidateCount,
+                evaluation.failedVariantCount,
                 failureType,
                 sample.lighting,
                 sample.orientation,
@@ -70,7 +86,8 @@ class OcrBenchmarkTest {
                 sample.printQuality,
                 sample.independenceKey,
                 sample.cohort,
-                sample.evaluationDate,
+                evaluationDate,
+                evaluationScenario,
                 sample.baseRotation,
                 appVersion(),
                 csvSafe(Build.MODEL),
@@ -150,6 +167,6 @@ class OcrBenchmarkTest {
             "evaluation_date",
         )
         private const val RESULT_HEADER =
-            "sample_id,image_sha256,expected_date,predicted_date,exact_match,detected,failure_type,lighting,orientation,material,date_format,print_quality,independence_key,cohort,evaluation_date,base_rotation,app_version,device_model"
+            "sample_id,image_sha256,expected_date,predicted_date,exact_match,detected,expected_candidate_detected,candidate_count,failed_variant_count,failure_type,lighting,orientation,material,date_format,print_quality,independence_key,cohort,evaluation_date,evaluation_scenario,base_rotation,app_version,device_model"
     }
 }

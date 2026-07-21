@@ -32,6 +32,14 @@ class ExpiryDateParserTest {
     }
 
     @Test
+    fun `structured expiry date wins over joined digit fallback end to end`() {
+        val text = "제조번호 20250101 유통기한 2026.09.29 까지"
+        val results = ExpiryDateParser.extractDates(text, today)
+
+        assertEquals(LocalDate.of(2026, 9, 29), ExpiryDateParser.selectBestDate(results, today))
+    }
+
+    @Test
     fun `day first date with four digit year is parsed`() {
         val results = ExpiryDateParser.extractDates("USE BY 31/12/2026", today)
 

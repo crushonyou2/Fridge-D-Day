@@ -10,6 +10,7 @@ import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 
@@ -18,13 +19,20 @@ object TextRecognitionHelper {
     data class OcrEvaluation(
         val selectedDate: LocalDate?,
         val candidateCount: Int,
+        val candidateDates: Set<LocalDate>,
         val hasRecognizedText: Boolean,
         val processedVariantCount: Int,
+        val failedVariantCount: Int,
     )
 
     private data class ProcessResult(
         val candidates: List<ExpiryDateParser.DateResult>,
         val hasRecognizedText: Boolean,
+    )
+
+    private data class ProcessAttempt(
+        val result: ProcessResult?,
+        val failed: Boolean,
     )
 
     private val recognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
@@ -44,15 +52,17 @@ object TextRecognitionHelper {
         val candidates = mutableListOf<ExpiryDateParser.DateResult>()
         var hasRecognizedText = false
         var processedVariantCount = 0
+        var failedVariantCount = 0
 
         // 1. 원본 이미지
         for (rot in listOf(baseRotation, baseRotation + 90)) {
             val rotated = rotateBitmap(bitmap, rot.toFloat())
             try {
-                processBitmap(rotated, "ORG_$rot", today)?.let { result ->
+                val attempt = processBitmap(rotated, "ORG_$rot", today)
+                if (attempt.failed) failedVariantCount += 1 else processedVariantCount += 1
+                attempt.result?.let { result ->
                     candidates.addAll(result.candidates)
                     hasRecognizedText = hasRecognizedText || result.hasRecognizedText
-                    processedVariantCount += 1
                 }
             } finally {
                 if (rotated !== bitmap) rotated.recycle()
@@ -65,10 +75,11 @@ object TextRecognitionHelper {
             for (rot in listOf(baseRotation, baseRotation + 90)) {
                 val rotated = rotateBitmap(inverted, rot.toFloat())
                 try {
-                    processBitmap(rotated, "INV_$rot", today)?.let { result ->
+                    val attempt = processBitmap(rotated, "INV_$rot", today)
+                    if (attempt.failed) failedVariantCount += 1 else processedVariantCount += 1
+                    attempt.result?.let { result ->
                         candidates.addAll(result.candidates)
                         hasRecognizedText = hasRecognizedText || result.hasRecognizedText
-                        processedVariantCount += 1
                     }
                 } finally {
                     if (rotated !== inverted) rotated.recycle()
@@ -78,11 +89,14 @@ object TextRecognitionHelper {
             inverted.recycle()
         }
 
+        val distinctCandidates = candidates.distinct()
         return OcrEvaluation(
-            selectedDate = ExpiryDateParser.selectBestDate(candidates, today),
-            candidateCount = candidates.distinct().size,
+            selectedDate = ExpiryDateParser.selectBestDate(distinctCandidates, today),
+            candidateCount = distinctCandidates.size,
+            candidateDates = distinctCandidates.mapTo(mutableSetOf()) { it.date },
             hasRecognizedText = hasRecognizedText,
             processedVariantCount = processedVariantCount,
+            failedVariantCount = failedVariantCount,
         )
     }
 
@@ -90,18 +104,26 @@ object TextRecognitionHelper {
         bitmap: Bitmap,
         tag: String,
         today: LocalDate,
-    ): ProcessResult? {
+    ): ProcessAttempt {
         val image = InputImage.fromBitmap(bitmap, 0)
         return try {
             val result = recognizer.process(image).await()
             // 로그 확인 (디버깅용)
             val logText = result.text.replace("\n", " ")
             Log.d("OCR_RAW_$tag", logText)
-            ProcessResult(
-                candidates = ExpiryDateParser.extractDates(result.text, today),
-                hasRecognizedText = result.text.isNotBlank(),
+            ProcessAttempt(
+                result = ProcessResult(
+                    candidates = ExpiryDateParser.extractDates(result.text, today),
+                    hasRecognizedText = result.text.isNotBlank(),
+                ),
+                failed = false,
             )
-        } catch (e: Exception) { null }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("OCR_ERROR_$tag", "Text recognition failed", e)
+            ProcessAttempt(result = null, failed = true)
+        }
     }
 
     // --- Utils ---

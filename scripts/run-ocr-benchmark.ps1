@@ -3,6 +3,7 @@ param(
     [string]$BaselineCsv = "",
     [string]$TargetFailureType = "",
     [int]$SampleLimit = 0,
+    [int]$EvaluationOffsetDays = 0,
     [string]$DatasetDir = "qa-private\ocr-benchmark",
     [switch]$ReleaseBaseline,
     [switch]$ValidateOnly
@@ -11,6 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 if ($RunName -notmatch "^[A-Za-z0-9_-]+$") { throw "RunName may contain only letters, numbers, '_' and '-': $RunName" }
 if ($TargetFailureType -and -not $BaselineCsv) { throw "TargetFailureType requires BaselineCsv." }
+if ($EvaluationOffsetDays -lt 0) { throw "EvaluationOffsetDays must be zero or a positive integer." }
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $privateRoot = if ([IO.Path]::IsPathRooted($DatasetDir)) {
     [IO.Path]::GetFullPath($DatasetDir)
@@ -150,6 +152,11 @@ $runnerArgs = @(
 if ($SampleLimit -gt 0) {
     $runnerArgs += "-Pandroid.testInstrumentationRunnerArguments.sampleLimit=$SampleLimit"
 }
+$evaluationScenario = if ($EvaluationOffsetDays -gt 0) { "expected_minus_${EvaluationOffsetDays}d" } else { "manifest" }
+if ($EvaluationOffsetDays -gt 0) {
+    $runnerArgs += "-Pandroid.testInstrumentationRunnerArguments.evaluationOffsetDays=$EvaluationOffsetDays"
+}
+$runStart = Get-Date
 & (Join-Path $PSScriptRoot "android-quality.ps1") `
     -Tasks @("connectedDebugAndroidTest") `
     -GradleArgs $runnerArgs
@@ -162,6 +169,9 @@ $generatedResult = Get-ChildItem -LiteralPath $androidTestOutput -Recurse -Filte
 if (-not $generatedResult) {
     throw "Could not find ocr-benchmark.csv in Android test additional output: $androidTestOutput"
 }
+if ($generatedResult.LastWriteTime -le $runStart) {
+    throw "The newest ocr-benchmark.csv predates this run ($runStart): $($generatedResult.FullName)"
+}
 Copy-Item -LiteralPath $generatedResult.FullName -Destination $resultPath -Force
 
 function Show-Metrics([string]$CsvPath, [string]$Label) {
@@ -170,7 +180,14 @@ function Show-Metrics([string]$CsvPath, [string]$Label) {
     if ($count -eq 0) { throw "Benchmark result has no samples: $CsvPath" }
     $exact = @($rows | Where-Object exact_match -eq "true").Count
     $detected = @($rows | Where-Object detected -eq "true").Count
-    Write-Host "[$Label] samples=$count exact=$exact/$count ($([math]::Round(100 * $exact / $count, 2))%) detected=$detected/$count ($([math]::Round(100 * $detected / $count, 2))%)"
+    $requiredResultColumns = @("expected_candidate_detected", "candidate_count", "failed_variant_count", "evaluation_scenario")
+    $missingResultColumns = @($requiredResultColumns | Where-Object { $_ -notin $rows[0].PSObject.Properties.Name })
+    if ($missingResultColumns) {
+        throw "Benchmark CSV uses the legacy result schema; rerun it with the current instrumentation. Missing: $($missingResultColumns -join ', ')"
+    }
+    $expectedDetected = @($rows | Where-Object expected_candidate_detected -eq "true").Count
+    $failedVariants = ($rows | Measure-Object failed_variant_count -Sum).Sum
+    Write-Host "[$Label] samples=$count exact=$exact/$count ($([math]::Round(100 * $exact / $count, 2))%) any_candidate=$detected/$count ($([math]::Round(100 * $detected / $count, 2))%) expected_candidate=$expectedDetected/$count ($([math]::Round(100 * $expectedDetected / $count, 2))%) failed_variants=$failedVariants scenario=$($rows[0].evaluation_scenario)"
     if ($count -lt 50) { Write-Warning "Fewer than 50 samples: this run is not a v1.1 release baseline." }
 
     $topFailures = @(
@@ -198,13 +215,18 @@ function Show-Metrics([string]$CsvPath, [string]$Label) {
         Count = $count
         Exact = $exact
         Detected = $detected
+        ExpectedDetected = $expectedDetected
         SampleIds = @($rows.sample_id | Sort-Object)
         Rows = $rows
         TopFailureType = if ($topFailures.Count -gt 0) { $topFailures[0].Name } else { "" }
+        EvaluationScenario = $rows[0].evaluation_scenario
     }
 }
 
 $current = Show-Metrics -CsvPath $resultPath -Label $RunName
+if ($current.EvaluationScenario -ne $evaluationScenario) {
+    throw "Instrumentation scenario mismatch: expected '$evaluationScenario', got '$($current.EvaluationScenario)'."
+}
 if ($BaselineCsv) {
     $baselinePath = if ([IO.Path]::IsPathRooted($BaselineCsv)) { $BaselineCsv } else { Join-Path $repoRoot $BaselineCsv }
     $baseline = Show-Metrics -CsvPath $baselinePath -Label "baseline"
@@ -221,6 +243,7 @@ if ($BaselineCsv) {
         "independence_key",
         "cohort",
         "evaluation_date",
+        "evaluation_scenario",
         "base_rotation"
     )
     $currentById = @{}
@@ -236,8 +259,27 @@ if ($BaselineCsv) {
             }
         }
     }
+    $exactRegressions = @(
+        $baseline.Rows | Where-Object {
+            $_.exact_match -eq "true" -and $currentById[$_.sample_id].exact_match -ne "true"
+        } | Select-Object -ExpandProperty sample_id
+    )
+    if ($exactRegressions) {
+        throw "Per-sample exact-match regression: $($exactRegressions -join ', ')"
+    }
+    $candidateRegressions = @(
+        $baseline.Rows | Where-Object {
+            $_.expected_candidate_detected -eq "true" -and
+                $currentById[$_.sample_id].expected_candidate_detected -ne "true"
+        } | Select-Object -ExpandProperty sample_id
+    )
+    if ($candidateRegressions) {
+        throw "Per-sample expected-candidate regression: $($candidateRegressions -join ', ')"
+    }
     if ($current.Exact -lt $baseline.Exact) { throw "Exact-match regression: $($baseline.Exact) -> $($current.Exact)" }
-    if ($current.Detected -lt $baseline.Detected) { throw "Candidate-detection regression: $($baseline.Detected) -> $($current.Detected)" }
+    if ($current.ExpectedDetected -lt $baseline.ExpectedDetected) {
+        throw "Expected-candidate regression: $($baseline.ExpectedDetected) -> $($current.ExpectedDetected)"
+    }
     if ($TargetFailureType) {
         if ($TargetFailureType -ne $baseline.TopFailureType) {
             throw "TargetFailureType must be the baseline's largest failure type: expected '$($baseline.TopFailureType)', got '$TargetFailureType'."
@@ -249,7 +291,7 @@ if ($BaselineCsv) {
         }
         Write-Host "[target-improvement] $TargetFailureType=$baselineTargetCount->$currentTargetCount"
     }
-    Write-Host "[delta] exact=$($current.Exact - $baseline.Exact) detected=$($current.Detected - $baseline.Detected)"
+    Write-Host "[delta] exact=$($current.Exact - $baseline.Exact) any_candidate=$($current.Detected - $baseline.Detected) expected_candidate=$($current.ExpectedDetected - $baseline.ExpectedDetected)"
 }
 
 Write-Host "Private result saved: $resultPath"

@@ -9,7 +9,10 @@ param(
     [int]$MaxLongEdge = 2048,
 
     [ValidateRange(0, 31)]
-    [int]$JpegQuality = 2
+    [int]$JpegQuality = 2,
+
+    [ValidateSet("baseline-v1-width", "max-long-edge-v2")]
+    [string]$ConversionProfile = "max-long-edge-v2"
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,22 +29,50 @@ $ffmpeg = (Get-Command ffmpeg -ErrorAction Stop).Source
 $sourceFiles = @(Get-ChildItem -LiteralPath $sourceRoot -File | Where-Object Extension -Match '^\.heic$' | Sort-Object Name)
 if ($sourceFiles.Count -eq 0) { throw "No HEIC files found in $sourceRoot" }
 
+$plans = @(
+    foreach ($source in $sourceFiles) {
+        $safeBaseName = [regex]::Replace($source.BaseName, '[^A-Za-z0-9_-]', '_')
+        [pscustomobject]@{
+            source = $source
+            safe_base_name = $safeBaseName
+            output_name = $safeBaseName + ".jpg"
+        }
+    }
+)
+$outputNameCollisions = @($plans | Group-Object output_name | Where-Object Count -gt 1)
+if ($outputNameCollisions) {
+    $details = $outputNameCollisions | ForEach-Object {
+        "$($_.Name) <= $(($_.Group.source.Name | Sort-Object) -join ', ')"
+    }
+    throw "Normalized output filename collision: $($details -join '; ')"
+}
+
+$scaleFilter = switch ($ConversionProfile) {
+    "baseline-v1-width" {
+        "scale=${MaxLongEdge}:-2:force_original_aspect_ratio=decrease"
+    }
+    "max-long-edge-v2" {
+        "scale=w='min(${MaxLongEdge},iw)':h='min(${MaxLongEdge},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2"
+    }
+}
+
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("fridge-ocr-heic-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
 try {
-    $rows = foreach ($source in $sourceFiles) {
-        $safeBaseName = [regex]::Replace($source.BaseName, '[^A-Za-z0-9_-]', '_')
+    $rows = foreach ($plan in $plans) {
+        $source = $plan.source
+        $safeBaseName = $plan.safe_base_name
         $fullJpeg = Join-Path $tempRoot ($safeBaseName + ".jpg")
-        $outputName = $safeBaseName + ".jpg"
+        $outputName = $plan.output_name
         $outputPath = Join-Path $outputRoot $outputName
 
         & $heifConvert --quiet -q 95 $source.FullName $fullJpeg
         if ($LASTEXITCODE -ne 0) { throw "heif-convert failed for $($source.Name)" }
 
         & $ffmpeg -hide_banner -loglevel error -y -i $fullJpeg `
-            -vf "scale=${MaxLongEdge}:-2:force_original_aspect_ratio=decrease" `
+            -vf $scaleFilter `
             -q:v $JpegQuality $outputPath
         if ($LASTEXITCODE -ne 0) { throw "ffmpeg failed for $($source.Name)" }
 
@@ -53,6 +84,7 @@ try {
             max_long_edge = $MaxLongEdge
             heif_jpeg_quality = 95
             ffmpeg_jpeg_quality = $JpegQuality
+            conversion_profile = $ConversionProfile
         }
     }
 
@@ -65,6 +97,7 @@ try {
         "max_long_edge=$MaxLongEdge"
         "heif_jpeg_quality=95"
         "ffmpeg_jpeg_quality=$JpegQuality"
+        "conversion_profile=$ConversionProfile"
     ) | Set-Content -LiteralPath (Join-Path $metadataRoot "conversion-metadata.txt") -Encoding utf8
 } finally {
     if (Test-Path -LiteralPath $tempRoot) {

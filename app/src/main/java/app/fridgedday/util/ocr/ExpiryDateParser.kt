@@ -22,8 +22,20 @@ internal object ExpiryDateParser {
             .replace("O", "0")
             .replace(":", "1")
 
+        val dayFirstPattern8 = Pattern.compile("(?<!\\d)(\\d{1,2})[.\\- /]+(\\d{1,2})[.\\- /]+(\\d{4})(?!\\d)")
+        var matcher = dayFirstPattern8.matcher(processedText)
+        while (matcher.find()) {
+            addDate(results, matcher.group(3)!!.toInt(), matcher.group(2)!!.toInt(), matcher.group(1)!!.toInt(), 3)
+        }
+
+        val dayFirstPattern6 = Pattern.compile("(?<!\\d)(\\d{1,2})[.\\- /]+(\\d{1,2})[.\\- /]+(\\d{2})(?!\\d)")
+        matcher = dayFirstPattern6.matcher(processedText)
+        while (matcher.find()) {
+            addDate(results, 2000 + matcher.group(3)!!.toInt(), matcher.group(2)!!.toInt(), matcher.group(1)!!.toInt(), 2)
+        }
+
         val pattern8 = Pattern.compile("(\\d{4})[.\\- /]+(\\d{1,2})[.\\- /]+(\\d{1,2})")
-        var matcher = pattern8.matcher(processedText)
+        matcher = pattern8.matcher(processedText)
         while (matcher.find()) {
             addDate(results, matcher.group(1)!!.toInt(), matcher.group(2)!!.toInt(), matcher.group(3)!!.toInt(), 3)
         }

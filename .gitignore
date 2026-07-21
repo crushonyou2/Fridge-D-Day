@@ -98,3 +98,6 @@ Desktop.ini
 # Other
 *.swp
 .~lock.*
+
+# Local OCR QA data (real photos, labels, and measured outputs)
+/qa-private/

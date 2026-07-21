@@ -17,33 +17,53 @@ object TextRecognitionHelper {
 
     private val recognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
 
-    suspend fun extractExpiryDate(bitmap: Bitmap, baseRotation: Int = 0): LocalDate? {
+    suspend fun extractExpiryDate(
+        bitmap: Bitmap,
+        baseRotation: Int = 0,
+        today: LocalDate = LocalDate.now(),
+    ): LocalDate? {
         val candidates = mutableListOf<ExpiryDateParser.DateResult>()
 
         // 1. 원본 이미지
         for (rot in listOf(baseRotation, baseRotation + 90)) {
             val rotated = rotateBitmap(bitmap, rot.toFloat())
-            processBitmap(rotated, "ORG_$rot")?.let { candidates.addAll(it) }
+            try {
+                processBitmap(rotated, "ORG_$rot", today)?.let { candidates.addAll(it) }
+            } finally {
+                if (rotated !== bitmap) rotated.recycle()
+            }
         }
 
         // 2. 반전 이미지
         val inverted = applyInvertFilter(bitmap)
-        for (rot in listOf(baseRotation, baseRotation + 90)) {
-            val rotated = rotateBitmap(inverted, rot.toFloat())
-            processBitmap(rotated, "INV_$rot")?.let { candidates.addAll(it) }
+        try {
+            for (rot in listOf(baseRotation, baseRotation + 90)) {
+                val rotated = rotateBitmap(inverted, rot.toFloat())
+                try {
+                    processBitmap(rotated, "INV_$rot", today)?.let { candidates.addAll(it) }
+                } finally {
+                    if (rotated !== inverted) rotated.recycle()
+                }
+            }
+        } finally {
+            inverted.recycle()
         }
 
-        return ExpiryDateParser.selectBestDate(candidates)
+        return ExpiryDateParser.selectBestDate(candidates, today)
     }
 
-    private suspend fun processBitmap(bitmap: Bitmap, tag: String): List<ExpiryDateParser.DateResult>? {
+    private suspend fun processBitmap(
+        bitmap: Bitmap,
+        tag: String,
+        today: LocalDate,
+    ): List<ExpiryDateParser.DateResult>? {
         val image = InputImage.fromBitmap(bitmap, 0)
         return try {
             val result = recognizer.process(image).await()
             // 로그 확인 (디버깅용)
             val logText = result.text.replace("\n", " ")
             Log.d("OCR_RAW_$tag", logText)
-            ExpiryDateParser.extractDates(result.text)
+            ExpiryDateParser.extractDates(result.text, today)
         } catch (e: Exception) { null }
     }
 

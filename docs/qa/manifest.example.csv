@@ -1,0 +1,2 @@
+sample_id,image_file,expected_date,lighting,orientation,material,date_format,base_rotation,evaluation_date
+sample_001,images/sample_001.jpg,2026-09-29,bright,upright,plastic,yyyy.mm.dd,0,2026-07-14

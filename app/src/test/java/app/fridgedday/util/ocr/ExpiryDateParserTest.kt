@@ -24,6 +24,22 @@ class ExpiryDateParserTest {
     }
 
     @Test
+    fun `day first date with four digit year is parsed`() {
+        val results = ExpiryDateParser.extractDates("USE BY 31/12/2026", today)
+
+        assertTrue(results.contains(ExpiryDateParser.DateResult(LocalDate.of(2026, 12, 31), 3)))
+    }
+
+    @Test
+    fun `day first date with two digit year is not treated as year first`() {
+        val evaluationDate = LocalDate.of(2016, 6, 20)
+        val results = ExpiryDateParser.extractDates("USE BY 20.07.16", evaluationDate)
+
+        assertTrue(results.contains(ExpiryDateParser.DateResult(LocalDate.of(2016, 7, 20), 2)))
+        assertEquals(LocalDate.of(2016, 7, 20), ExpiryDateParser.selectBestDate(results, evaluationDate))
+    }
+
+    @Test
     fun `month and day before today are inferred as next year`() {
         val results = ExpiryDateParser.extractDates("06.30", today)
 

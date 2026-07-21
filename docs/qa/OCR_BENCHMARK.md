@@ -2,31 +2,91 @@
 
 오늘도 신선의 실제 라벨 사진을 앱과 동일한 ML Kit 한국어 OCR·날짜 파서로 반복 평가하는 QA 기준이다. 측정하지 않은 값은 성과나 배포 근거로 쓰지 않는다.
 
-## 현재 상태 (2026-07-14)
+## 현재 상태 (2026-07-22)
 
-- 실제 포장 사진 및 정답 데이터: 공개 데이터셋에서 육안 검수한 61장 + 한국 라벨 보완 세트 20장
-- 수정 전: 정확 일치 3/61(4.92%), 후보 탐지 45/61(73.77%)
-- 수정 후: 정확 일치 23/61(37.70%), 후보 탐지 48/61(78.69%)
-- 최대 실패 유형: `wrong_date` 42건 → 25건
-- 수정 범위: 구분자가 있는 `DD/MM/YYYY`, `DD/MM/YY`의 일 우선 해석 1건
-- 동일 표본 회귀: sample_id 61개 일치, 정확 일치 +20, 탐지 +3, 기존 정답 회귀 0
-- Android 검증: 단위 테스트 17개, `lintDebug`, `assembleDebug`, `assembleDebugAndroidTest`, 61장 instrumentation 벤치마크 통과
-- 한국 보완 세트: 정확 일치 13/20(65%), 후보 탐지 18/20(90%). 50장 미만이므로 릴리스 기준선이 아닌 보완 관측값이다.
-- v1.1 배포 가능 여부: **품질 기준 보류(No-Go)**. 빌드·회귀 게이트는 통과했지만 공개 기준선 정확 일치율이 37.70%이고 한국 보완 세트도 65%에 머문다.
+- 독립 한국 라벨 사진 55장(`existing_20=20`, `new_30_plus=35`)으로 v1.1 릴리스 기준선을 고정했다.
+- 수정 전: 정확 일치 37/55(67.27%), 후보 탐지 54/55(98.18%).
+- 수정 후: 정확 일치 40/55(72.73%), 후보 탐지 54/55(98.18%).
+- 최대 실패 유형: `wrong_date` 14건 → 11건. 동일 입력 회귀의 정확 일치 +3, 탐지 변화 0이다.
+- Android 검증: 단위 테스트 18개, `lintDebug`, `assembleDebug`, `assembleRelease`, `assembleDebugAndroidTest`, 55장 instrumentation 및 수정 전후 회귀 게이트가 모두 통과했다.
+- v1.1 배포 가능 여부: **No-Go**. 자동화·회귀 게이트는 통과했지만 15/55(27.27%)가 여전히 오답이고, 한글 `YYYY년 MM월 DD일`과 연속 숫자 `YYYYMMDD`·`YYMMDD` 실사진이 표본에 없다.
 
-Google Play·원스토어 최종 제출은 수행하지 않았다. 공개 표본은 영어권 포장 중심이므로 한국 보완 세트 결과를 별도로 병기하며 두 결과를 합산해 하나의 정확도처럼 발표하지 않는다.
+Google Play·원스토어 제출은 수행하지 않았다. 현재 원스토어 공개 버전은 유지하고, 다음 후보도 동일 기준선과 누락 형식 보완 표본으로 내부 검증한 뒤 한 번의 검증된 v1.1 업데이트로 배포한다. 긴급 장애·보안 수정만 별도 핫픽스로 취급한다.
 
-## 독립 한국 50장 확장 준비 상태 (2026-07-21)
+## 독립 한국 라벨 55장 v1.1 기준선 (2026-07-22)
 
-- 코딩 정본: `C:\Users\joji\Documents\취준자료\project-repos\Fridge-D-Day`
-- 작업 브랜치/기준 커밋: `codex/fridge-ocr-qa-baseline` / `e8917ae`
-- 기존 한국 사진: manifest 20행, 파일 20개, SHA-256 고유값 20개, 동일 파일 중복 0건. 육안으로도 서로 다른 제품·포장임을 확인했다.
-- 새 한국 사진: 0장. 기존 20장과 독립성을 비교할 신규 입력이 아직 없다.
-- 기존 20장 분류 보완: 조명·각도에 더해 재질 9종, 인쇄 품질 6종, 고유 `independence_key`, `cohort=existing_20`을 로컬 manifest에 기록했다.
-- 누락 표기: 한글 `YYYY년 MM월 DD일`과 연속 숫자 `YYYYMMDD`·`YYMMDD` 표본이 없다.
-- 대표성 주의: `korean_012`는 설명 오버레이가 있는 이미지이고 `korean_017`은 여러 제품이 함께 보이는 가격표형 사진이다. 두 장은 원본 촬영 통제가 약한 한계로 최종 결과에 명시한다.
+- 코딩 정본/브랜치/수정 전 코드: `C:\Users\joji\Documents\취준자료\project-repos\Fridge-D-Day` / `codex/fridge-ocr-qa-baseline` / `5cd1402`.
+- 로컬 입력: `qa-private/korean-labels-55`. 실제 사진·manifest·sample별 결과는 `.gitignore`의 `qa-private/`에만 있다.
+- 기존 20장과 신규 HEIC 35장은 각각 SHA-256이 모두 고유하다. 변환본을 합친 55장도 해시가 모두 고유하고, 육안으로 서로 다른 제품·포장을 확인했다. 16×16 평균 해시의 최근접 쌍도 256비트 중 해밍 거리 54로 근접 중복 징후가 없었다.
+- HEIC는 원본을 보존한 채 `heif-convert 1.23.0` 품질 95 → FFmpeg `2025-10-05` 긴 변 2048px·JPEG q2로 변환했다. 원본/변환 SHA 매핑과 도구 버전은 로컬 `conversion-manifest.csv`, `conversion-metadata.txt`에 있다.
+- `IMG_2375`는 사진의 `2026.08.20`과 기대값이 일치해 메모의 누락된 일자만 교정했다. `IMG_2388`은 사진에 `유통: 2023.12.23까지`가 명확해 제공된 `2022-12-13`을 `2023-12-23`으로 교정했다.
+- 누락 표기: 한글 `YYYY년 MM월 DD일`과 연속 숫자 `YYYYMMDD`·`YYMMDD` 실사진은 여전히 없다.
+- 대표성 주의: 기존 `korean_012`는 설명 오버레이가 있고 `korean_017`은 여러 제품이 함께 보이는 가격표형 사진이다.
 
-따라서 이 상태에서는 한국 50장 정확도나 v1.1 배포 수치를 산출하지 않는다. 서로 다른 실제 제품 30장 이상과 사람이 확인한 날짜 정답이 들어온 뒤 아래 `-ReleaseBaseline` 검증을 통과해야 새 기준선을 실행한다.
+### 표본 분류
+
+| 차원 | 분포 |
+|---|---|
+| 코호트 | 신규 35, 기존 20 |
+| 조명 | normal 40, glare 12, dark 2, bright 1 |
+| 각도 | skewed 31, upright 20, rotated_90 4 |
+| 재질 | plastic_film 19, paper_carton 9, pet_bottle 8, plastic_bottle 5, plastic_tub 3, metal_can/plastic_cap/plastic_cup/plastic_tray 각 2, glass_bottle/paper_label/paper_label_on_plastic 각 1 |
+| 날짜 형식 | yyyy.mm.dd 41, yy.mm.dd 8, mm.dd_no_year 2, yyyy_space_mm.dd 2, dd/mm/yyyy 1, yyyy_mm_dd_spaces 1 |
+| 인쇄 품질 | clear_dot_matrix 16, clear_label_print 15, clear_inkjet 12, embossed_low_contrast 4, low_contrast 4, faded_ink 3, broken_inkjet 1 |
+
+### 수정 전후 결과
+
+| 지표 | 수정 전 | 수정 후 | 변화 |
+|---|---:|---:|---:|
+| 정확 일치율 | 37/55 (67.27%) | 40/55 (72.73%) | +3장, +5.46%p |
+| 후보 탐지율 | 54/55 (98.18%) | 54/55 (98.18%) | 0 |
+| `wrong_date` | 14 | 11 | -3 |
+| `candidate_out_of_window` | 3 | 3 | 0 |
+| `no_text` | 1 | 1 | 0 |
+| 기존 20장 실패율 | 7/20 (35%) | 6/20 (30%) | -1장 |
+| 신규 35장 실패율 | 11/35 (31.43%) | 9/35 (25.71%) | -2장 |
+
+환경별 실패율은 작은 그룹을 일반화하지 않고 관측값으로만 사용한다.
+
+| 환경 | 표본 | 수정 전 실패율 | 수정 후 실패율 |
+|---|---:|---:|---:|
+| 조명-normal | 40 | 10/40 (25%) | 8/40 (20%) |
+| 조명-glare | 12 | 6/12 (50%) | 5/12 (41.67%) |
+| 조명-dark | 2 | 2/2 (100%) | 2/2 (100%) |
+| 조명-bright | 1 | 0/1 (0%) | 0/1 (0%) |
+| 각도-skewed | 31 | 11/31 (35.48%) | 8/31 (25.81%) |
+| 각도-upright | 20 | 6/20 (30%) | 6/20 (30%) |
+| 각도-rotated_90 | 4 | 1/4 (25%) | 1/4 (25%) |
+| 재질-plastic_film | 19 | 8/19 (42.11%) | 7/19 (36.84%) |
+| 재질-paper_carton | 9 | 5/9 (55.56%) | 5/9 (55.56%) |
+| 재질-pet_bottle | 8 | 0/8 (0%) | 0/8 (0%) |
+| 재질-plastic_bottle | 5 | 3/5 (60%) | 2/5 (40%) |
+| 재질-기타 8종 | 14 | 2/14 (14.29%) | 1/14 (7.14%) |
+| 형식-yyyy.mm.dd | 41 | 13/41 (31.71%) | 10/41 (24.39%) |
+| 형식-yy.mm.dd | 8 | 1/8 (12.5%) | 1/8 (12.5%) |
+| 형식-mm.dd_no_year | 2 | 2/2 (100%) | 2/2 (100%) |
+| 형식-yyyy_space_mm.dd | 2 | 1/2 (50%) | 1/2 (50%) |
+| 형식-dd/mm/yyyy | 1 | 1/1 (100%) | 1/1 (100%) |
+| 형식-yyyy_mm_dd_spaces | 1 | 0/1 (0%) | 0/1 (0%) |
+| 인쇄-clear_dot_matrix | 16 | 8/16 (50%) | 8/16 (50%) |
+| 인쇄-clear_label_print | 15 | 3/15 (20%) | 2/15 (13.33%) |
+| 인쇄-clear_inkjet | 12 | 1/12 (8.33%) | 0/12 (0%) |
+| 인쇄-embossed_low_contrast | 4 | 3/4 (75%) | 3/4 (75%) |
+| 인쇄-low_contrast | 4 | 2/4 (50%) | 2/4 (50%) |
+| 인쇄-faded_ink | 3 | 1/3 (33.33%) | 0/3 (0%) |
+| 인쇄-broken_inkjet | 1 | 0/1 (0%) | 0/1 (0%) |
+
+실패 상위 3개는 수정 전 `wrong_date` 14, `candidate_out_of_window` 3, `no_text` 1이고 수정 후 `wrong_date` 11, `candidate_out_of_window` 3, `no_text` 1이다. 가장 큰 `wrong_date`를 겨냥해 OCR 전체 숫자 결합 후보의 신뢰도를 2~3에서 1로 낮추고, 실제 연속 6/8자리 compact 날짜만 신뢰도 2~3으로 분리했다. 구분자가 있거나 실제로 연속된 날짜가 있으면 제품번호·용량·시간에서 합성된 후보보다 우선한다.
+
+첫 수정안은 정확 일치 39/55로 개선됐지만 후보 탐지가 54→51로 하락해 회귀 게이트가 기각했다. 저신뢰 fallback을 유지한 최종안은 정확 일치 40/55, 탐지 54/55, `wrong_date` 11건으로 모든 회귀 조건을 통과했다.
+
+| 로컬 원시 결과 | SHA-256 |
+|---|---|
+| `qa-private/results/korean-labels-55-baseline.csv` | `f3da66618c7703cd9d12308d357800fdf7fe5e0e38fb412ca5a26a9e4d087894` |
+| `qa-private/results/korean-labels-55-after.csv` (기각안) | `edceb8feddac706a79e1551dffc9ba597e77d9adf3ae181898fdc10d308a7af7` |
+| `qa-private/results/korean-labels-55-after-final.csv` | `7f0e3babf757193eed1801236e8ed60ec29587abfd77c0376eb194e8a78cc210` |
+
+측정 환경은 `Medium_Phone_API_36.0` AVD(Android 16), `sdk_gphone64_x86_64`, 앱 `1.0.0-debug`다. 기준선 instrumentation은 9분 17초, 최종 회귀는 9분 1초였다.
 
 러너는 새 기준선에서 다음을 추가로 보장한다.
 
@@ -150,28 +210,38 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
 
 ```powershell
 .\scripts\run-ocr-benchmark.ps1 `
-  -DatasetDir qa-private/korean-labels-50 `
+  -DatasetDir qa-private/korean-labels-55 `
   -ReleaseBaseline `
   -ValidateOnly
 ```
 
+HEIC 원본을 보존하면서 동일한 파생 JPEG를 다시 만든다. `heif-convert`와 `ffmpeg`가 PATH에 있어야 한다.
+
+```powershell
+.\scripts\convert-heic-ocr-dataset.ps1 `
+  -SourceDir qa-private/korean-lables-new/images `
+  -OutputDir qa-private/korean-labels-55/images `
+  -MaxLongEdge 2048 `
+  -JpegQuality 2
+```
+
 ## 실행 환경과 명령
 
-요구사항은 JDK 17, Android SDK 35, 정확히 1대의 연결된 Android 기기 또는 에뮬레이터다. 2026-07-14 측정은 `Medium_Phone_API_36.0` AVD(Android 16), 기기 모델 `sdk_gphone64_x86_64`, 앱 `1.0.0-debug`에서 수행했다. Windows 한글 상위 경로에서 Gradle 8.2 테스트 클래스패스가 깨지는 문제를 피하기 위해 스크립트가 저장소를 임시 ASCII 드라이브로 매핑하고 종료 시 해제한다.
+요구사항은 JDK 17, Android SDK 35, 정확히 1대의 연결된 Android 기기 또는 에뮬레이터다. 2026-07-22의 55장 측정은 `Medium_Phone_API_36.0` AVD(Android 16), 기기 모델 `sdk_gphone64_x86_64`, 앱 `1.0.0-debug`에서 수행했다. Windows 한글 상위 경로에서 Gradle 8.2 테스트 클래스패스가 깨지는 문제를 피하기 위해 스크립트가 저장소를 임시 ASCII 드라이브로 매핑하고 종료 시 해제한다.
 
 일반 Android 품질 게이트:
 
 ```powershell
-.\scripts\android-quality.ps1
-.\scripts\android-quality.ps1 -Tasks @("assembleDebugAndroidTest")
+.\scripts\android-quality.ps1 `
+  -Tasks @("testDebugUnitTest","lintDebug","assembleDebug","assembleRelease","assembleDebugAndroidTest")
 ```
 
 최초 기준선 측정:
 
 ```powershell
 .\scripts\run-ocr-benchmark.ps1 `
-  -RunName korean-labels-50-baseline `
-  -DatasetDir qa-private/korean-labels-50 `
+  -RunName korean-labels-55-baseline `
+  -DatasetDir qa-private/korean-labels-55 `
   -ReleaseBaseline
 ```
 
@@ -187,11 +257,11 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
 
 ```powershell
 .\scripts\run-ocr-benchmark.ps1 `
-  -RunName korean-labels-50-after `
-  -DatasetDir qa-private/korean-labels-50 `
+  -RunName korean-labels-55-after-final `
+  -DatasetDir qa-private/korean-labels-55 `
   -ReleaseBaseline `
-  -BaselineCsv qa-private/results/korean-labels-50-baseline.csv `
-  -TargetFailureType <수정_전_최상위_실패_유형>
+  -BaselineCsv qa-private/results/korean-labels-55-baseline.csv `
+  -TargetFailureType wrong_date
 ```
 
 결과 회수 경로만 빠르게 확인할 때는 성과 측정에 포함하지 않는 스모크 옵션을 쓴다.
@@ -213,7 +283,7 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
 - `candidate_out_of_window`: 날짜 후보는 있으나 평가일 허용 범위를 통과한 후보가 없음
 - `wrong_date`: 후보를 선택했지만 최종 날짜가 정답과 다름
 
-2026-07-14의 공개 61장·한국 20장 역사 결과는 종전 `no_candidate` 분류를 사용한다. 새 한국 50장 수정 전·후 결과는 위 세분화된 동일 러너 버전끼리만 비교한다.
+2026-07-14의 공개 61장·한국 20장 역사 결과는 종전 `no_candidate` 분류를 사용한다. 새 한국 55장 수정 전·후 결과는 위 세분화된 동일 러너 버전끼리만 비교한다.
 
 표본이 50장 미만이면 스크립트가 결과를 표시하되 v1.1 릴리스 기준선으로 인정하지 않는 경고를 낸다. 50장 이상이면 정확 일치율, 후보 탐지율, 실패 유형 및 조명·방향·재질·표기별 실패율을 모두 출력한다.
 
@@ -231,7 +301,9 @@ manifest 열은 다음과 같다. 쉼표가 들어간 값은 허용하지 않는
 ## 남은 리스크와 다음 단계
 
 - 공개 61장은 50장 판정선을 충족하지만 영어권·일 우선 표기가 많아 한국 유통기한 라벨을 대표하지 않는다.
-- 한국 20장은 국내 적합성 보완에는 유효하지만 50장 미만이고 `YYYYMMDD`, 한글 `YYYY년 MM월 DD일` 표기가 없어 독립 릴리스 기준선으로는 부족하다.
-- 다음 확장 시 서로 다른 한국 제품 30장 이상을 추가해 한국 세트도 50장을 채우고, 누락된 숫자 연속·한글 날짜 표기를 포함한다.
+- 한국 55장은 독립 릴리스 기준선이지만 정확 일치가 72.73%여서 자동 입력 오답 15장을 사용자에게 그대로 노출할 위험이 남는다.
+- 다음 확장 시 한글 `YYYY년 MM월 DD일`, 연속 숫자 `YYYYMMDD`·`YYMMDD` 실사진을 반드시 포함한다. 현재 수치로 이 형식의 품질을 추정하지 않는다.
+- 잔여 실패는 clear_dot_matrix 8/16, embossed_low_contrast 3/4, dark 2/2, 연도 없는 `MM.DD` 2/2에 집중된다. 다음 변경은 새 기준선을 보존한 채 다시 가장 큰 실패 원인 하나로 제한한다.
+- `korean_012`의 설명 오버레이와 `korean_017`의 가격표형 다중 제품 구도는 실제 카메라 촬영 대표성의 한계다.
 - 사진·정답·원시 결과는 계속 `qa-private/`에만 저장하고 공개 문서에는 집계만 남긴다.
-- 월 이름 날짜 21장과 기울기 2장은 현재 실패율이 높다. 이번 작업은 최대 실패 원인 하나만 수정한다는 원칙 때문에 추가 수정하지 않았다.
+- 원스토어 공개 업데이트는 위 누락 형식과 잔여 오답을 재검증해 v1.1 Go가 된 뒤 한 번에 수행한다. 현재 작업에서는 제출하지 않는다.

@@ -24,6 +24,14 @@ class ExpiryDateParserTest {
     }
 
     @Test
+    fun `unrelated digits across label text are only a low confidence fallback`() {
+        val results = ExpiryDateParser.extractDates("제조번호 2026 용량 02 수량 28", today)
+
+        assertTrue(results.contains(ExpiryDateParser.DateResult(LocalDate.of(2026, 2, 28), 1)))
+        assertTrue(results.none { it.date == LocalDate.of(2026, 2, 28) && it.confidence >= 2 })
+    }
+
+    @Test
     fun `day first date with four digit year is parsed`() {
         val results = ExpiryDateParser.extractDates("USE BY 31/12/2026", today)
 

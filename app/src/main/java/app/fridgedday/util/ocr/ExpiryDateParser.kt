@@ -58,17 +58,34 @@ internal object ExpiryDateParser {
             }
         }
 
+        // Compact dates must be contiguous in the OCR output. Removing every non-digit from
+        // the full label used to join unrelated lot numbers, quantities, and times into dates.
+        val compact8 = Pattern.compile("(?<!\\d)(\\d{8})(?!\\d)").matcher(processedText)
+        while (compact8.find()) {
+            val candidate = compact8.group(1)!!
+            addDate(results, candidate.substring(0, 4).toInt(), candidate.substring(4, 6).toInt(), candidate.substring(6, 8).toInt(), 3)
+        }
+
+        val compact6 = Pattern.compile("(?<!\\d)(\\d{6})(?!\\d)").matcher(processedText)
+        while (compact6.find()) {
+            val candidate = compact6.group(1)!!
+            addDate(results, 2000 + candidate.substring(0, 2).toInt(), candidate.substring(2, 4).toInt(), candidate.substring(4, 6).toInt(), 2)
+        }
+
+        // ML Kit occasionally inserts labels or whitespace inside a compact printed date. Keep
+        // the historical joined-digit scan as confidence-1 fallback only. Structured and truly
+        // contiguous dates above (confidence 2-3) always win when either is available.
         val digitsOnly = processedText.filter { it.isDigit() }
         if (digitsOnly.length >= 8) {
             for (i in 0..digitsOnly.length - 8) {
                 val candidate = digitsOnly.substring(i, i + 8)
-                addDate(results, candidate.substring(0, 4).toInt(), candidate.substring(4, 6).toInt(), candidate.substring(6, 8).toInt(), 3)
+                addDate(results, candidate.substring(0, 4).toInt(), candidate.substring(4, 6).toInt(), candidate.substring(6, 8).toInt(), 1)
             }
         }
         if (digitsOnly.length >= 6) {
             for (i in 0..digitsOnly.length - 6) {
                 val candidate = digitsOnly.substring(i, i + 6)
-                addDate(results, 2000 + candidate.substring(0, 2).toInt(), candidate.substring(2, 4).toInt(), candidate.substring(4, 6).toInt(), 2)
+                addDate(results, 2000 + candidate.substring(0, 2).toInt(), candidate.substring(2, 4).toInt(), candidate.substring(4, 6).toInt(), 1)
             }
         }
 

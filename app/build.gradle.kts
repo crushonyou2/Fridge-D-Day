@@ -63,6 +63,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    sourceSets {
+        val ocrBenchmarkDir = providers.gradleProperty("ocrBenchmarkDir")
+            .orElse("qa-private/ocr-benchmark")
+        getByName("androidTest").assets.srcDir(rootProject.file(ocrBenchmarkDir.get()))
+    }
 }
 
 dependencies {
@@ -123,6 +129,8 @@ dependencies {
     testImplementation("androidx.room:room-testing:$roomVersion")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.test.services:storage:1.4.2")
+    androidTestUtil("androidx.test.services:test-services:1.4.2")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

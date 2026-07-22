@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ML Kit의 전이 telemetry manifest가 추가하는 네트워크 권한을 제거한다. -->
+    <uses-permission
+        android:name="android.permission.INTERNET"
+        tools:node="remove" />
 
     <!-- Android 13+ 알림 권한 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>

@@ -3,16 +3,17 @@ param(
     [string]$BaselineCsv = "",
     [string]$TargetFailureType = "",
     [int]$SampleLimit = 0,
+    [ValidateRange(0, 1825)]
     [int]$EvaluationOffsetDays = 0,
     [string]$DatasetDir = "qa-private\ocr-benchmark",
     [switch]$ReleaseBaseline,
+    [switch]$OverwriteResult,
     [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = "Stop"
 if ($RunName -notmatch "^[A-Za-z0-9_-]+$") { throw "RunName may contain only letters, numbers, '_' and '-': $RunName" }
 if ($TargetFailureType -and -not $BaselineCsv) { throw "TargetFailureType requires BaselineCsv." }
-if ($EvaluationOffsetDays -lt 0) { throw "EvaluationOffsetDays must be zero or a positive integer." }
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $privateRoot = if ([IO.Path]::IsPathRooted($DatasetDir)) {
     [IO.Path]::GetFullPath($DatasetDir)
@@ -27,6 +28,21 @@ $datasetRelative = [IO.Path]::GetRelativePath($repoRoot, $privateRoot).Replace('
 $manifestPath = Join-Path $privateRoot "manifest.csv"
 $resultDir = Join-Path $repoRoot "qa-private\results"
 $resultPath = Join-Path $resultDir "$RunName.csv"
+$baselinePath = if ($BaselineCsv) {
+    if ([IO.Path]::IsPathRooted($BaselineCsv)) {
+        [IO.Path]::GetFullPath($BaselineCsv)
+    } else {
+        [IO.Path]::GetFullPath((Join-Path $repoRoot $BaselineCsv))
+    }
+} else {
+    ""
+}
+if ($baselinePath -and $baselinePath.Equals([IO.Path]::GetFullPath($resultPath), [StringComparison]::OrdinalIgnoreCase)) {
+    throw "BaselineCsv and the result path are the same file: $resultPath"
+}
+if ($baselinePath -and -not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) {
+    throw "Missing regression baseline: $baselinePath"
+}
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {
     throw "Missing private manifest: $manifestPath. Copy docs/qa/manifest.example.csv and add local images."
@@ -133,6 +149,9 @@ if ($ValidateOnly) {
     Write-Host "Dataset validation passed: $manifestPath"
     return
 }
+if ((Test-Path -LiteralPath $resultPath) -and -not $OverwriteResult) {
+    throw "Result already exists; choose a new RunName or pass -OverwriteResult: $resultPath"
+}
 
 $localProperties = Get-Content -LiteralPath (Join-Path $repoRoot "local.properties") -Raw
 $sdkLine = ($localProperties -split "`r?`n" | Where-Object { $_ -like "sdk.dir=*" } | Select-Object -First 1)
@@ -228,7 +247,6 @@ if ($current.EvaluationScenario -ne $evaluationScenario) {
     throw "Instrumentation scenario mismatch: expected '$evaluationScenario', got '$($current.EvaluationScenario)'."
 }
 if ($BaselineCsv) {
-    $baselinePath = if ([IO.Path]::IsPathRooted($BaselineCsv)) { $BaselineCsv } else { Join-Path $repoRoot $BaselineCsv }
     $baseline = Show-Metrics -CsvPath $baselinePath -Label "baseline"
     if ($baseline.Count -ne $current.Count) { throw "Regression comparison requires the same sample count." }
     if (Compare-Object $baseline.SampleIds $current.SampleIds) { throw "Regression comparison requires identical sample_id values." }

@@ -28,11 +28,15 @@ class OcrBenchmarkTest {
 
         val allSamples = manifest.drop(1).filter { it.isNotBlank() }.map { parseSample(header, it) }
         val sampleLimit = InstrumentationRegistry.getArguments().getString("sampleLimit")?.toIntOrNull() ?: 0
-        val evaluationOffsetDays = InstrumentationRegistry.getArguments()
-            .getString("evaluationOffsetDays")
-            ?.toLongOrNull()
-        require(evaluationOffsetDays == null || evaluationOffsetDays > 0) {
-            "evaluationOffsetDays must be a positive integer"
+        val evaluationOffsetArgument = InstrumentationRegistry.getArguments().getString("evaluationOffsetDays")
+        val evaluationOffsetDays = evaluationOffsetArgument?.let { rawValue ->
+            require(rawValue.matches(Regex("[0-9]+"))) {
+                "evaluationOffsetDays must be a positive integer: $rawValue"
+            }
+            rawValue.toLong()
+        }
+        require(evaluationOffsetDays == null || evaluationOffsetDays in 1..MAX_EVALUATION_OFFSET_DAYS) {
+            "evaluationOffsetDays must be between 1 and $MAX_EVALUATION_OFFSET_DAYS"
         }
         val samples = if (sampleLimit > 0) allSamples.take(sampleLimit) else allSamples
         assertTrue("sample_id values must be unique", samples.map { it.sampleId }.distinct().size == samples.size)
@@ -155,6 +159,7 @@ class OcrBenchmarkTest {
     companion object {
         private const val MANIFEST_FILE = "manifest.csv"
         private const val RESULT_FILE = "ocr-benchmark.csv"
+        private const val MAX_EVALUATION_OFFSET_DAYS = 1825L
         private val REQUIRED_MANIFEST_COLUMNS = listOf(
             "sample_id",
             "image_file",

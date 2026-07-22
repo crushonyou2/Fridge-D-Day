@@ -9,7 +9,7 @@
 - 수정 후(D-30): 정확 일치 40/55(72.73%), 아무 후보 탐지 54/55(98.18%), 정답 후보 재현 43/55(78.18%).
 - 평가일 민감도(D-180): 정확 일치 39/55(70.91%), 아무 후보 탐지 54/55(98.18%), 정답 후보 재현 43/55(78.18%). D-30보다 1장 낮다.
 - 최대 실패 유형: `wrong_date` 14건 → 11건. 동일 입력 회귀의 정확 일치 +3, 탐지 변화 0이다.
-- Android 검증은 단위 테스트 19개, `lintDebug`, `assembleDebug`, `assembleRelease`, `assembleDebugAndroidTest`, D-30/D-180 instrumentation 및 새 스키마의 동일 55장 샘플별 회귀 게이트가 모두 통과했다.
+- Android 검증은 단위 테스트 19개, `lintDebug`, `assembleDebug`, `assembleRelease`, `assembleDebugAndroidTest`, D-30/D-180 instrumentation 및 새 스키마의 동일 55장 샘플별 회귀 게이트가 모두 통과했다. 두 시나리오를 한 명령으로 강제하는 릴리스 회귀도 D-30 8분 24초·D-180 8분 6초에 연속 통과했다.
 - v1.1 배포 가능 여부: **No-Go**. 자동화·회귀 게이트는 통과했지만 15/55(27.27%)가 여전히 오답이고, 한글 `YYYY년 MM월 DD일`과 연속 숫자 `YYYYMMDD`·`YYMMDD` 실사진이 표본에 없다.
 
 Google Play·원스토어 제출은 수행하지 않았다. 현재 원스토어 공개 버전은 유지하고, 다음 후보도 동일 기준선과 누락 형식 보완 표본으로 내부 검증한 뒤 한 번의 검증된 v1.1 업데이트로 배포한다. 긴급 장애·보안 수정만 별도 핫픽스로 취급한다.
@@ -92,6 +92,8 @@ Google Play·원스토어 제출은 수행하지 않았다. 현재 원스토어 
 | `qa-private/results/korean-labels-55-v2-d30.csv` | `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff` |
 | `qa-private/results/korean-labels-55-v2-d180.csv` | `d896caa5702aaa559f1ba377131b1ebeca2e29fb86f85419931dfdc6253ff2f9` |
 | `qa-private/results/korean-labels-55-v2-d30-regression.csv` | `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff` |
+| `qa-private/results/korean-labels-55-v3-guard-regression-d30.csv` | `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff` |
+| `qa-private/results/korean-labels-55-v3-guard-regression-d180.csv` | `d896caa5702aaa559f1ba377131b1ebeca2e29fb86f85419931dfdc6253ff2f9` |
 
 측정 환경은 `Medium_Phone_API_36.0` AVD(Android 16), `sdk_gphone64_x86_64`, 앱 `1.0.0-debug`다. 역사 기준선 instrumentation은 9분 17초, 최종 파서 회귀는 9분 1초였고, v2 스키마 D-30·D-180 측정은 각각 9분 3초·8분 33초였다. 새 스키마 D-30 동일 표본 회귀는 8분 26초에 통과했고 기준선과 결과 파일 해시까지 같았다.
 
@@ -101,6 +103,7 @@ Google Play·원스토어 제출은 수행하지 않았다. 현재 원스토어 
 - 50장 이상, `existing_20=20`·`new_30_plus>=30`, 실제 재질, 인쇄 품질 분류를 릴리스 입력 조건으로 검사한다.
 - 결과 CSV에 이미지 SHA-256을 남기고 수정 전후 사진·정답·분류·평가일이 모두 같은지 비교한다.
 - 실행 시작 이후 새로 생성된 CSV만 결과로 인정한다.
+- 기준선과 새 결과가 같은 경로면 instrumentation 전에 거부하고, 기존 결과 파일은 `-OverwriteResult`를 명시하지 않으면 덮어쓰지 않는다.
 - 아무 후보 탐지와 정답 후보 재현을 분리하고 OCR 실패 변형 수를 기록한다.
 - 전체 합계뿐 아니라 샘플별 정확 일치와 정답 후보의 퇴행도 거부한다.
 - 실패를 `ocr_error`, `no_text`, `no_date_candidate`, `candidate_out_of_window`, `wrong_date`로 분리하고 상위 3개를 출력한다.
@@ -291,15 +294,14 @@ HEIC 원본을 보존하면서 현재 55장의 파생 JPEG를 재현한다. `bas
   -DatasetDir qa-private/korean-labels
 ```
 
-현재 스키마에서 가장 큰 실패 유형 하나만 수정한 뒤 동일 D-30 표본 회귀:
+현재 스키마에서 가장 큰 실패 유형 하나만 수정한 뒤 D-30·D-180 동일 표본을 한 명령으로 회귀한다. 대상 실패 유형의 개선은 D-30에서 요구하고, 두 시나리오 모두 샘플별 정확 일치·정답 후보와 전체 합계가 하락하면 실패한다.
 
 ```powershell
-.\scripts\run-ocr-benchmark.ps1 `
-  -RunName korean-labels-55-v2-d30-after-next-fix `
+.\scripts\run-ocr-release-regression.ps1 `
+  -RunNamePrefix korean-labels-55-v2-after-next-fix `
   -DatasetDir qa-private/korean-labels-55 `
-  -ReleaseBaseline `
-  -EvaluationOffsetDays 30 `
-  -BaselineCsv qa-private/results/korean-labels-55-v2-d30.csv `
+  -D30BaselineCsv qa-private/results/korean-labels-55-v2-d30.csv `
+  -D180BaselineCsv qa-private/results/korean-labels-55-v2-d180.csv `
   -TargetFailureType wrong_date
 ```
 
@@ -310,6 +312,10 @@ HEIC 원본을 보존하면서 현재 55장의 파생 JPEG를 재현한다. `bas
 ```
 
 러너는 manifest·사진 존재 여부, `sample_id`·파일 경로·SHA-256·독립성 키 중복, 연결 기기 수를 먼저 검사한다. 앱의 원본/90도·반전/반전 90도 OCR 경로를 실행하고 `qa-private/results/<run-name>.csv`를 만든다. 회귀 비교는 표본 수와 `sample_id`뿐 아니라 사진 해시·정답·모든 환경 분류·평가일·평가 시나리오까지 같아야 통과한다. 전체 정확 일치와 정답 후보 재현이 하락하거나 기존 정답/정답 후보 샘플 하나라도 퇴행하면 실패한다. `-TargetFailureType`은 수정 전 최상위 유형이어야 하고 건수가 실제로 줄어야 통과한다. 아무 후보 탐지는 진단값으로만 출력한다.
+
+`EvaluationOffsetDays`는 0(기존 manifest 평가일 사용) 또는 1~1825일만 허용한다. instrumentation 인자가 숫자가 아니면 manifest 시나리오로 조용히 대체하지 않고 실패한다. 같은 `RunName`의 결과가 이미 있으면 새 이름을 사용한다. `-OverwriteResult`는 폐기 가능한 재실행 결과에만 명시하며 SHA-256으로 고정한 기준선에는 사용하지 않는다. `run-ocr-release-regression.ps1`은 D-30과 D-180을 순서대로 실행해 한쪽만 통과한 변경을 릴리스 회귀 성공으로 인정하지 않는다.
+
+기준선 보호 음성 검증에서는 `RunName`이 기준선 파일명과 같은 경우, 기존 결과명이 재사용된 경우, 평가 offset이 1825일을 초과한 경우가 모두 instrumentation 전에 거부됐다. 검증 전후 D-30 기준선 SHA-256은 `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff`로 동일했다.
 
 ## 지표와 실패 분류
 
@@ -333,8 +339,8 @@ HEIC 원본을 보존하면서 현재 55장의 파생 JPEG를 재현한다. `bas
 1. 50장 이상의 기준선을 먼저 측정한다.
 2. 실패 건수를 `failure_type`으로 집계해 가장 큰 유형 하나를 선택한다.
 3. 그 유형만 겨냥한 최소 변경을 한다. 측정 전에는 파서 개선을 추측해 적용하지 않는다.
-4. 같은 기기·같은 사진·같은 manifest로 다시 실행한다.
-5. 전체 정확 일치·정답 후보 재현이 하락하지 않고, 개별 정답·정답 후보 퇴행이 없으며, 대상 실패 유형이 개선됐는지 CSV 차이로 확인한다.
+4. 같은 기기·같은 사진·같은 manifest로 D-30과 D-180을 모두 다시 실행한다.
+5. 두 시나리오에서 전체 정확 일치·정답 후보 재현이 하락하지 않고 개별 정답·정답 후보 퇴행이 없으며, D-30에서 대상 실패 유형이 개선됐는지 CSV 차이로 확인한다.
 6. 단위 테스트·lint·debug 빌드가 모두 통과하고 목표 사용자 라벨의 대표성이 확보돼야 v1.1 배포 가능으로 판정한다.
 
 실제 전후 수치는 이 문서의 현재 상태에 기록하되, 사진·sample별 정답·원시 결과는 계속 `qa-private/`에만 둔다. Google Play 또는 원스토어 제출은 이 절차에 포함하지 않는다.

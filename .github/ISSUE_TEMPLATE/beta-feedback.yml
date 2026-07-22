@@ -1,37 +1,24 @@
-name: 베타 테스트 피드백
-description: 오늘도 신선 사용 중 발견한 불편이나 오류를 알려주세요.
-title: "[Beta] "
-labels: [beta-feedback]
+name: 유지보수 이슈
+description: Archived 프로젝트의 보안 또는 빌드 재현성 문제만 기록합니다.
+title: "[Maintenance] "
 body:
   - type: markdown
     attributes:
-      value: 식품 사진이나 개인 식품 기록은 첨부하지 마세요.
+      value: |
+        프로젝트는 v1.0 Released / v1.1 QA No-Go / Archived 상태입니다.
+        추가 사용자 베타, OCR 개선, 신규 기능, v1.1 출시와 스토어 업데이트는 진행하지 않습니다.
+        식품 사진, 개인 식품 기록, 정답 원본, 비밀값은 첨부하지 마세요.
   - type: input
     id: environment
     attributes:
       label: 실행 환경
-      description: 휴대폰 모델과 Android 버전을 적어주세요.
-    validations:
-      required: true
-  - type: dropdown
-    id: ocr_success
-    attributes:
-      label: 라벨 2개의 날짜 자동입력 성공 개수
-      options:
-        - 0개
-        - 1개
-        - 2개
+      description: 재현에 필요한 OS, JDK, Android SDK 또는 빌드 도구 버전만 적어주세요.
     validations:
       required: true
   - type: textarea
     id: issue
     attributes:
-      label: 불편하거나 잘못 동작한 부분
-      description: 문제가 발생하기 직전 수행한 동작을 순서대로 적어주세요.
+      label: 보안 또는 빌드 재현성 문제
+      description: 공개 정보만으로 재현 절차, 기대 결과와 실제 결과를 적어주세요.
     validations:
       required: true
-  - type: textarea
-    id: suggestion
-    attributes:
-      label: 개선 제안
-      description: 가장 먼저 개선했으면 하는 점을 알려주세요.

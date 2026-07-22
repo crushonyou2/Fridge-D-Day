@@ -1,5 +1,8 @@
 # 오늘도 신선 (Fridge D-Day) - 프로젝트 종합 문서
 
+> **최종 상태: v1.0 Released (원스토어) / v1.1 QA No-Go / Archived (Maintenance only)**
+> 이 문서는 초기 기획과 구현 범위를 함께 보존하는 역사 문서다. 현재 활성 개발·출시 로드맵은 없으며, 종료 근거와 검증된 사실은 [PROJECT_CLOSEOUT.md](PROJECT_CLOSEOUT.md)를 정본으로 사용한다. 종료 인계에서 다시 확인되지 않은 수치·효과·평가는 당시 계획 또는 자체 판단이며 포트폴리오 성과로 인용하지 않는다.
+
 ## 📌 프로젝트 개요
 
 ### 1. 프로젝트 주제
@@ -80,7 +83,7 @@
 
 ---
 
-## 📋 교수님 권고사항 대응
+## 📋 교수님 권고사항 대응 (역사적 계획 기록)
 
 ### 제출한 추진계획서 내용
 
@@ -114,9 +117,8 @@
 #### 3. Key Result
 
 **최종 결과물**
-- ✅ 완성도 높은 Android 앱 (실사용 가능)
-- ✅ Play Store 출시 기준 충족 (API, 보안, 데이터 정책)
-- ⚠️ 비공개 테스트 요건(12명 테스터 + 14일)으로 출시 보류
+- ✅ Android 앱 구현 및 이후 원스토어 v1.0 출시
+- ⚠️ Google Play는 출시하지 않음
 - ✅ GitHub 리포지토리, AAB 빌드, 스크린샷, 메타데이터 완비
 
 **보조 산출물**
@@ -127,9 +129,9 @@
 
 #### 4. 목표 마켓
 
-- **목표**: Google Play 스토어
-- **현황**: 출시 준비 완료, 기술 요건 충족, 비공개 테스트 보류
-- **향후**: 학회·캡스톤 논문화 검토 가능
+- **당시 목표**: Google Play 스토어
+- **실제 결과**: 원스토어 v1.0 출시, Google Play 미출시
+- **당시 아이디어**: 학회·캡스톤 논문화 검토(실행·성과 없음)
 
 ---
 
@@ -221,7 +223,9 @@ Android:
 
 ---
 
-## 📁 프로젝트 구조
+## 📁 초기 설계 구조 스케치 (현재 구현 정본 아님)
+
+아래 상세 트리와 코드 조각은 초기 설계 기록이라 현재 클래스명·패키지와 일부 다르다. 실제 구현 구조는 소스 트리와 [README.md](README.md)를, 검증된 종료 사실은 [PROJECT_CLOSEOUT.md](PROJECT_CLOSEOUT.md)를 기준으로 하며 아래 예시를 현재 구현 증거로 인용하지 않는다.
 
 ### 디렉토리 구조
 
@@ -298,12 +302,11 @@ Fridge-D-Day/
 │   │   │   │
 │   │   │   └── assets/ (없음)
 │   │   │
-│   │   └── androidTest/ (테스트 코드 - 미구현)
+│   │   └── androidTest/ (Room DAO·홈 화면·OCR benchmark instrumentation)
 │   │
 │   ├── build.gradle.kts                      # 앱 레벨 빌드 설정
 │   ├── proguard-rules.pro                    # ProGuard 난독화 규칙
-│   └── release/
-│       └── app-release.aab                   # Play Store 업로드용
+│   └── build/outputs/                         # 로컬 생성물, Git 미추적
 │
 ├── gradle/                                   # Gradle Wrapper
 ├── build.gradle.kts                          # 프로젝트 레벨 빌드 설정
@@ -315,11 +318,6 @@ Fridge-D-Day/
 │   ├── app_icon_512.svg
 │   ├── feature_graphic_1024x500.svg
 │   └── feature_graphic_1024x500.png
-│
-├── presentation/                             # 발표 자료
-│   ├── PRESENTATION_SLIDES_COMPACT.md
-│   ├── PRESENTATION_SCRIPT_COMPACT.md
-│   └── ...
 │
 ├── privacy_policy.html                       # 개인정보처리방침
 ├── PLAYSTORE_GUIDE.md                        # Play Store 제출 가이드
@@ -438,9 +436,10 @@ class NotificationWorker(context: Context, params: WorkerParameters)
 - **로컬 저장**: 모든 데이터는 기기 내 Room Database에만 저장
 - **서버 전송 없음**: 네트워크 통신 0건
 - **개인정보 미수집**: 이름, 이메일, 위치 등 일체 수집 안 함
-- **권한 최소화**:
+- **사용자 승인 권한 최소화**:
   - CAMERA (OCR용)
   - POST_NOTIFICATIONS (알림용)
+- **네트워크 차단**: Release APK에서 `INTERNET` 권한 제거
 
 ### Play Store Data Safety 선언
 
@@ -454,9 +453,9 @@ class NotificationWorker(context: Context, params: WorkerParameters)
 
 ### 기술적 성과
 
-✅ **안정성**
-- 테스트 기간 중 충돌 0건
-- Room Database 트랜잭션 안전성 확보
+✅ **검증**
+- 단위 테스트 19개, lint, Debug/Release build, instrumentation 통과
+- 독립 한국 식품 라벨 55장 D-30/D-180 회귀 기준선 고정
 
 ✅ **성능**
 - Jetpack Compose 최적화로 즉각적 반응
@@ -469,20 +468,10 @@ class NotificationWorker(context: Context, params: WorkerParameters)
 
 ### 개발 완성도
 
-✅ **계획 대비 100% 달성**
-- 모든 핵심 기능 구현 완료
-- UI/UX 완성도 높음
-
-✅ **Play Store 출시 기준 충족**
-- Target SDK 35 (최신)
-- 보안 정책 준수
-- 데이터 안전 정책 만족
-- 메타데이터 완비 (스크린샷 8장, Feature Graphic, 아이콘)
-
-⚠️ **출시 보류 사유**
-- 2024년 정책 변경: 프로덕션 출시 전 비공개 테스트 필수
-- 요건: 12명 이상 테스터 + 14일 이상 기간
-- 기술적으로는 출시 가능, 정책 요건 미충족
+✅ **출시와 후속 릴리스 판단**
+- v1.0 원스토어 출시 완료
+- Google Play 미출시
+- 출시 후 독립 QA 결과에 따라 v1.1 Release No-Go, 미제출
 
 ### 학습 성과
 
@@ -500,7 +489,9 @@ class NotificationWorker(context: Context, params: WorkerParameters)
 
 ---
 
-## 🚀 향후 발전 방향
+## 🚀 역사적 확장 아이디어 (현재 비활성)
+
+아래 항목은 초기 구상 기록이며 구현·사용자 모집·출시 계획이 아니다. 프로젝트는 Archived / Maintenance only 상태로 종료했고 추가 OCR 개선, 베타, v1.1 또는 스토어 업데이트를 진행하지 않는다.
 
 ### 단기 (3개월)
 
@@ -539,23 +530,23 @@ class NotificationWorker(context: Context, params: WorkerParameters)
 - 카메라 센서 + ML 기술로 실생활 문제 해결
 - 향후 IoT 확장 기반 마련
 
-**2. 환경 문제 해결**
-- 식품 낭비 감소로 ESG·지속가능성 기여
-- 사회적 가치 창출
+**2. 기대 효과 (미측정)**
+- 식품 낭비 감소를 제품 목표로 삼았지만 감소량이나 행동 변화는 측정하지 않음
+- ESG·지속가능성 기여와 사회적 가치 창출을 성과로 주장하지 않음
 
 **3. 프라이버시 우선 설계**
 - 로컬 ML 처리로 개인정보 보호
-- 사용자 신뢰 확보
+- 사용자 신뢰도는 측정하지 않음
 
 ### 핵심 성과
 
-✅ 완성도 높은 실사용 가능 앱 개발
-✅ 최신 Android 기술(Kotlin, Compose, Room, ML Kit) 실무 수준 습득
-✅ 지속가능 소비 문화 기여 도구 개발
+✅ Kotlin·Compose·Room·ML Kit 기반 Android 앱 v1.0 원스토어 출시
+✅ 독립 55장 QA, 샘플별 회귀 자동화와 기준선 보호 구축
+✅ 잔여 오답과 표본 공백을 근거로 v1.1 기준 미달 배포 차단
 
 ### 최종 평가
 
-> "Android 개발 첫 경험이었지만, 확실한 완성을 목표로 프로젝트 규모를 현실적으로 조정하고, 최신 기술을 실무 수준으로 습득했습니다. Physical AI의 초기 단계로서, 향후 센서 연동 등으로 확장할 수 있는 견고한 기반을 마련했습니다."
+> v1.0 출시 후 독립 QA와 릴리스 게이트를 적용해 v1.1 후보를 조건부 수치로 평가했고, 대표성 공백과 잔여 오답을 근거로 배포하지 않았다. 프로젝트는 목표 달성 후 Archived / Maintenance only로 종료한다.
 
 ---
 
@@ -564,7 +555,6 @@ class NotificationWorker(context: Context, params: WorkerParameters)
 ### 문서
 - [PLAYSTORE_GUIDE.md](PLAYSTORE_GUIDE.md) - Play Store 제출 가이드
 - [privacy_policy.html](privacy_policy.html) - 개인정보처리방침
-- [presentation/](presentation/) - 발표 자료 및 대본
 
 ### 기술 문서
 - [Jetpack Compose 공식 문서](https://developer.android.com/jetpack/compose)
@@ -578,3 +568,4 @@ class NotificationWorker(context: Context, params: WorkerParameters)
 **프로젝트 버전**: 1.0.0
 **버전 코드**: 2
 **Target SDK**: 35 (Android 15)
+**프로젝트 상태**: v1.0 Released / v1.1 QA No-Go / Archived

@@ -8,9 +8,7 @@ param(
 
     [string]$D180BaselineCsv = "qa-private\results\korean-labels-55-v2-d180.csv",
 
-    [string]$TargetFailureType = "",
-
-    [switch]$OverwriteResults
+    [string]$TargetFailureType = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,9 +20,7 @@ $benchmarkScript = Join-Path $PSScriptRoot "run-ocr-benchmark.ps1"
 $commonArguments = @{
     DatasetDir = $DatasetDir
     ReleaseBaseline = $true
-}
-if ($OverwriteResults) {
-    $commonArguments.OverwriteResult = $true
+    PartOfReleaseRegression = $true
 }
 
 $d30Arguments = $commonArguments.Clone()

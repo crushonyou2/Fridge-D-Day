@@ -8,12 +8,19 @@ param(
     [string]$DatasetDir = "qa-private\ocr-benchmark",
     [switch]$ReleaseBaseline,
     [switch]$OverwriteResult,
+    [switch]$PartOfReleaseRegression,
     [switch]$ValidateOnly
 )
 
 $ErrorActionPreference = "Stop"
 if ($RunName -notmatch "^[A-Za-z0-9_-]+$") { throw "RunName may contain only letters, numbers, '_' and '-': $RunName" }
 if ($TargetFailureType -and -not $BaselineCsv) { throw "TargetFailureType requires BaselineCsv." }
+if ($OverwriteResult -and $BaselineCsv) {
+    throw "Regression results cannot be overwritten; choose a new RunName instead of -OverwriteResult."
+}
+if ($ReleaseBaseline -and $BaselineCsv -and -not $PartOfReleaseRegression) {
+    Write-Warning "A single-scenario release regression is incomplete. Use run-ocr-release-regression.ps1 to gate D-30 and D-180 together."
+}
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $privateRoot = if ([IO.Path]::IsPathRooted($DatasetDir)) {
     [IO.Path]::GetFullPath($DatasetDir)

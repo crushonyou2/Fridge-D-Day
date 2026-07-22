@@ -33,7 +33,9 @@ class OcrBenchmarkTest {
             require(rawValue.matches(Regex("[0-9]+"))) {
                 "evaluationOffsetDays must be a positive integer: $rawValue"
             }
-            rawValue.toLong()
+            requireNotNull(rawValue.toLongOrNull()) {
+                "evaluationOffsetDays is too large: $rawValue"
+            }
         }
         require(evaluationOffsetDays == null || evaluationOffsetDays in 1..MAX_EVALUATION_OFFSET_DAYS) {
             "evaluationOffsetDays must be between 1 and $MAX_EVALUATION_OFFSET_DAYS"

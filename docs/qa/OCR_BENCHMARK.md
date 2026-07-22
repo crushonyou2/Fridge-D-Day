@@ -313,9 +313,9 @@ HEIC 원본을 보존하면서 현재 55장의 파생 JPEG를 재현한다. `bas
 
 러너는 manifest·사진 존재 여부, `sample_id`·파일 경로·SHA-256·독립성 키 중복, 연결 기기 수를 먼저 검사한다. 앱의 원본/90도·반전/반전 90도 OCR 경로를 실행하고 `qa-private/results/<run-name>.csv`를 만든다. 회귀 비교는 표본 수와 `sample_id`뿐 아니라 사진 해시·정답·모든 환경 분류·평가일·평가 시나리오까지 같아야 통과한다. 전체 정확 일치와 정답 후보 재현이 하락하거나 기존 정답/정답 후보 샘플 하나라도 퇴행하면 실패한다. `-TargetFailureType`은 수정 전 최상위 유형이어야 하고 건수가 실제로 줄어야 통과한다. 아무 후보 탐지는 진단값으로만 출력한다.
 
-`EvaluationOffsetDays`는 0(기존 manifest 평가일 사용) 또는 1~1825일만 허용한다. instrumentation 인자가 숫자가 아니면 manifest 시나리오로 조용히 대체하지 않고 실패한다. 같은 `RunName`의 결과가 이미 있으면 새 이름을 사용한다. `-OverwriteResult`는 폐기 가능한 재실행 결과에만 명시하며 SHA-256으로 고정한 기준선에는 사용하지 않는다. `run-ocr-release-regression.ps1`은 D-30과 D-180을 순서대로 실행해 한쪽만 통과한 변경을 릴리스 회귀 성공으로 인정하지 않는다.
+`EvaluationOffsetDays`는 0(기존 manifest 평가일 사용) 또는 1~1825일만 허용한다. instrumentation 인자가 숫자가 아니거나 `Long` 범위를 넘으면 manifest 시나리오로 조용히 대체하지 않고 명시적으로 실패한다. 같은 `RunName`의 결과가 이미 있으면 새 이름을 사용한다. 회귀 비교에 `-OverwriteResult`를 함께 지정하면 거부하며, 이 옵션은 기준선과 비교하지 않는 폐기 가능한 측정에만 사용한다. `run-ocr-benchmark.ps1`을 직접 호출한 단일 시나리오 릴리스 회귀는 불완전하다는 경고를 출력한다. `run-ocr-release-regression.ps1`은 D-30과 D-180을 순서대로 실행해 한쪽만 통과한 변경을 릴리스 회귀 성공으로 인정하지 않는다.
 
-기준선 보호 음성 검증에서는 `RunName`이 기준선 파일명과 같은 경우, 기존 결과명이 재사용된 경우, 평가 offset이 1825일을 초과한 경우가 모두 instrumentation 전에 거부됐다. 검증 전후 D-30 기준선 SHA-256은 `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff`로 동일했다.
+기준선 보호 음성 검증에서는 `RunName`이 기준선 파일명과 같은 경우, 기존 결과명이 재사용된 경우, 회귀 비교에 `-OverwriteResult`를 지정한 경우, 평가 offset이 1825일을 초과한 경우가 모두 instrumentation 전에 거부됐다. 단일 시나리오 직접 릴리스 회귀 경고도 확인했고, 20자리 offset은 instrumentation에서 `evaluationOffsetDays is too large`로 명시적으로 실패했다. 검증 전후 D-30 기준선 SHA-256은 `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff`로 동일했다.
 
 ## 지표와 실패 분류
 

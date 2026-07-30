@@ -5,17 +5,25 @@ import app.fridgedday.data.db.entity.ItemEntity
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
-class ItemRepository(private val itemDao: ItemDao) {
+interface AddEditItemRepository {
+    suspend fun getById(id: Long): ItemEntity?
+    suspend fun insert(item: ItemEntity): Long
+    suspend fun update(item: ItemEntity)
+}
+
+class ItemRepository(
+    private val itemDao: ItemDao
+) : AddEditItemRepository {
 
     fun observeAll(): Flow<List<ItemEntity>> = itemDao.observeAll()
 
     fun search(keyword: String): Flow<List<ItemEntity>> = itemDao.search(keyword)
 
-    suspend fun getById(id: Long): ItemEntity? = itemDao.getById(id)
+    override suspend fun getById(id: Long): ItemEntity? = itemDao.getById(id)
 
-    suspend fun insert(item: ItemEntity): Long = itemDao.insert(item)
+    override suspend fun insert(item: ItemEntity): Long = itemDao.insert(item)
 
-    suspend fun update(item: ItemEntity) = itemDao.update(item)
+    override suspend fun update(item: ItemEntity) = itemDao.update(item)
 
     suspend fun archive(id: Long) = itemDao.archive(id)
 

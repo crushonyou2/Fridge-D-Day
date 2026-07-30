@@ -89,6 +89,7 @@ fun CameraPreview(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.5f))
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(16.dp)
         ) {
             IconButton(
@@ -115,6 +116,7 @@ fun CameraPreview(
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .background(Color.Black.copy(alpha = 0.5f))
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -176,31 +178,4 @@ fun CameraPreview(
             }
         }
     }
-}
-
-/**
- * ImageProxy를 Bitmap으로 변환
- */
-private fun ImageProxy.toBitmap(): Bitmap {
-    val buffer = planes[0].buffer
-    val bytes = ByteArray(buffer.remaining())
-    buffer.get(bytes)
-
-    // YUV_420_888 형식을 Bitmap으로 변환
-    val yuvImage = android.graphics.YuvImage(
-        bytes,
-        android.graphics.ImageFormat.NV21,
-        width,
-        height,
-        null
-    )
-
-    val out = java.io.ByteArrayOutputStream()
-    yuvImage.compressToJpeg(
-        android.graphics.Rect(0, 0, width, height),
-        100,
-        out
-    )
-    val imageBytes = out.toByteArray()
-    return android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 }

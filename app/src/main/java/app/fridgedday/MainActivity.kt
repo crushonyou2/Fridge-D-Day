@@ -3,6 +3,7 @@ package app.fridgedday
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         // Create notification channels
         NotificationUtils.createNotificationChannels(this)
@@ -80,8 +82,7 @@ fun FridgeDDayTheme(
     }
 
     // 신선한 녹색 테마
-    val freshGreenLight = Color(0xFF4CAF50)
-    val freshGreenDark = Color(0xFF388E3C)
+    val freshGreenLight = Color(0xFF2E7D32)
 
     val colorScheme = if (useDarkTheme) {
         darkColorScheme(

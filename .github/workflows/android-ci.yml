@@ -16,10 +16,22 @@ jobs:
           java-version: "17"
           cache: gradle
       - uses: android-actions/setup-android@v3
-      - name: Install Android SDK 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - uses: gradle/actions/setup-gradle@v4
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-      - name: Run unit tests and lint
-        run: ./gradlew testDebugUnitTest lintDebug --stacktrace
+      - name: Run unit tests, lint, and release builds
+        run: ./gradlew testDebugUnitTest lintDebug assembleRelease assembleDebugAndroidTest --stacktrace
+      - name: Verify release privacy boundary
+        shell: bash
+        run: |
+          APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          if apkanalyzer manifest permissions "$APK" | grep -Fxq "android.permission.INTERNET"; then
+            echo "Release APK unexpectedly contains INTERNET permission."
+            exit 1
+          fi
+          if unzip -Z1 "$APK" | grep -Eiq "qa-private|korean-label|ocr-benchmark|local\.properties"; then
+            echo "Release APK unexpectedly contains private QA or local configuration data."
+            exit 1
+          fi

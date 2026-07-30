@@ -22,7 +22,6 @@ import app.fridgedday.ui.components.TimePickerDialog
 import app.fridgedday.util.backup.BackupManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -57,7 +56,7 @@ fun SettingsScreen(
             coroutineScope.launch {
                 isBackupInProgress = true
                 try {
-                    val items = itemRepository.observeAll().first()
+                    val items = itemRepository.getAllItems()
                     val result = BackupManager.exportToJson(context, items, it)
                     result.onSuccess {
                         snackbarHostState.showSnackbar("백업 완료")

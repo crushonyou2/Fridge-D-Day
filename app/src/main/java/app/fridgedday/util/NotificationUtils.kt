@@ -46,11 +46,10 @@ object NotificationUtils {
     }
 
     fun sendExpiringSoonNotification(context: Context, count: Int) {
-        if (count == 0) return
+        if (count == 0 || !PermissionUtils.hasNotificationPermission(context)) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            data = android.net.Uri.parse("fridgedday://home?filter=expiring")
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -74,11 +73,10 @@ object NotificationUtils {
     }
 
     fun sendExpiredNotification(context: Context, count: Int) {
-        if (count == 0) return
+        if (count == 0 || !PermissionUtils.hasNotificationPermission(context)) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            data = android.net.Uri.parse("fridgedday://home?filter=expired")
         }
 
         val pendingIntent = PendingIntent.getActivity(

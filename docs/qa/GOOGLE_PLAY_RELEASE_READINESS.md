@@ -4,15 +4,31 @@
 
 ## 현재 판정
 
-**추가 보완 필요. Paid Closed Test No-Go.**
+**로컬 Release Candidate 보완·검증 완료. Paid Closed Test No-Go.**
 
 이 판정은 Google Play 프로덕션 출시 여부가 아니라 유료 비공개 테스트에 진입할
-준비가 되었는지를 대상으로 한다. 현재 기준선 빌드는 성공하지만 API 36, 날짜
-확정 흐름, 데이터 보존, 서명, 실제 업데이트 검증이 완료되지 않았다.
+준비가 되었는지를 대상으로 한다. API 36 전환, 날짜 확정 흐름, 파괴적 Room
+fallback 제거, 자동화와 API 36 에뮬레이터 검증은 완료했다. 그러나 업로드 키
+서명, Play App Signing 상태, 실제 code 2 바이너리에서의 업데이트, API 26·35,
+실제 Android 기기, 독립 코드 리뷰가 확인되지 않아 No-Go를 유지한다.
 
 기존 상태인 `v1.0 Released / v1.1 QA No-Go / Archived (Maintenance only)`는
 유효하다. 이번 후보는 기존 v1.1 OCR 정확도 개선판을 다시 출시하는 것이 아니라,
 Google Play 배포 안전성과 사용자의 날짜 확인을 보완하는 별도 Release Candidate다.
+
+| Go 조건 | 현재 상태 |
+|---|---|
+| code 3 / 1.0.1, API 36 | 완료 |
+| 날짜 미확정 저장 차단·OCR 확인 | 완료 |
+| Room v2 구조 검증·파괴적 fallback 제거 | 완료 |
+| 자동 품질 게이트·API 36 에뮬레이터 | 완료 |
+| D-30·D-180 OCR 회귀 | 완료, 기준선 대비 퇴행 0 |
+| 업로드 키로 서명된 AAB | 미완료 |
+| Play App Signing·code 2 원본 확인 | 확인 필요 |
+| 실제 code 2→3 기기 업데이트 | 미완료 |
+| API 26·35 에뮬레이터 | 미완료(로컬 이미지 없음) |
+| 실제 Android 기기 | 미완료 |
+| 독립 코드 리뷰·P0/P1 0건 | 미완료 |
 
 ## Phase 0 감사
 
@@ -159,6 +175,135 @@ Candidate 산출물이 아니다.
 
 이 digest는 기준선 감사 증거일 뿐이며 최종 후보 digest로 재사용하지 않는다.
 
+## Phase 1~4 실행 결과
+
+### 구현 기준
+
+| 항목 | 결과 |
+|---|---|
+| 구현 커밋 | `c470a2a11c5aa871a93422e1df18fc0d2d1c629b` |
+| application ID | `app.fridgedday` |
+| versionCode / versionName | 3 / 1.0.1 |
+| minSdk / compileSdk / targetSdk | 26 / 36 / 36 |
+| AGP / Gradle / JDK | 8.9.1 / 8.11.1 / 17 |
+| Kotlin / Compose Compiler | 1.9.22 / 1.5.10 |
+| Room DB | version 2 유지, schema export 활성화 |
+
+사용자가 versionCode 3과 versionName 1.0.1을 확정했다. DB entity와 version은
+바꾸지 않았으며 `fallbackToDestructiveMigration()`을 제거했다.
+
+### 적용한 최소 보완
+
+- 신규 항목 날짜 초기값을 제거하고 날짜 선택·확인 전 저장을 차단했다.
+- OCR 날짜는 후보로만 보관하며 `인식된 날짜가 맞나요?` 대화상자의 확인을 거쳐야
+  저장값이 된다. 수정과 취소 경로 및 인식 실패 시 수동 선택 안내를 추가했다.
+- 항목 수정 시 원래의 생성일, 보관 상태와 소비 완료일을 보존한다.
+- Activity 재생성에도 추가·수정 ViewModel 상태가 유지되도록 수명주기를 연결했다.
+- 날짜 선택기의 UTC 변환으로 시간대에 따른 날짜 이동 가능성을 제거했다.
+- Room v2 schema를 저장소에 기록하고 파괴적 fallback을 제거했다.
+- 백업 형식 v2에서 수량 0, 보관 항목, 소비 완료일과 생성일을 보존하고 v1 읽기
+  호환성을 유지했다.
+- API 36 edge-to-edge와 카메라 시스템 바 inset을 적용했다.
+- 알림·카메라 권한 거부 시 앱 설정 진입 경로를 제공하고 앱 복귀 시 알림 권한을
+  재조회한다.
+- 알림 발행 전 권한을 검사하고 알림 PendingIntent의 불필요한 data URI를 제거했다.
+- OCR 원문·예외 stack trace 출력을 제거하고 Release 개인정보 경계를 CI에 추가했다.
+- CameraX의 정상 `ImageProxy.toBitmap()` 경로를 가리던 잘못된 변환 확장을 제거했다.
+
+새 OCR 정확도 개선, 새 기능, `INTERNET` 권한, 서버·분석·광고 SDK는 추가하지
+않았다.
+
+### 자동화 결과
+
+2026-07-31에 최종 구현 커밋 대상으로 다음 품질 게이트를 실행했다.
+
+```powershell
+.\scripts\android-quality.ps1 `
+  -Tasks @(
+    "testDebugUnitTest",
+    "lintDebug",
+    "assembleDebug",
+    "assembleRelease",
+    "bundleRelease",
+    "assembleDebugAndroidTest"
+  )
+```
+
+결과:
+
+- 단위 테스트 29/29 통과
+- lint 오류 0, 경고 41
+- Debug APK, Release APK, Release AAB, AndroidTest APK 빌드 통과
+- API 36 `Medium_Phone_API_36.0` AVD 연결 테스트 14/14 통과
+- 연결 테스트에는 Home UI, DAO, OCR 확인 대화상자와 Room v2 데이터 보존이 포함됨
+
+lint 경고 41건의 주요 구성은 의존성 업데이트 제안 24건과 미사용 리소스 8건이다.
+컴파일 시 기존 `Sort` 아이콘 API 폐기 예고 1건이 발생하지만 차단 오류는 아니다.
+
+한글 상위 경로에서 Gradle을 직접 실행하면 JVM 테스트 클래스패스가 깨지는 환경
+제약이 재현됐다. 정식 결과는 저장소 품질 스크립트가 임시 ASCII 드라이브를
+매핑해 실행한 값이다.
+
+### API 36 에뮬레이터 검증
+
+API 36 AVD에서 다음을 확인했다.
+
+- 신규 항목은 날짜가 비어 있고 미확정 저장이 차단됨
+- 날짜를 수동 선택·확정한 뒤 저장됨
+- 제품명과 확정 날짜가 세로↔가로 Activity 재생성 후 유지됨
+- 홈·추가·카메라 화면의 시스템 바 inset과 edge-to-edge가 겹치지 않음
+- 라이트·다크 모드 및 글자 크기 130%에서 주요 홈 화면 문구와 동작이 잘리지 않음
+- 알림 권한 거부 후 안내 유지, 앱 설정 진입, 재허용 후 복귀 즉시 안내 제거
+- 카메라 권한 거부 후 안내 Snackbar와 올바른 앱 설정 진입
+
+API 26·35 AVD는 로컬 SDK에 system image가 없고 `sdkmanager`를 포함한 Android
+command-line tools도 없어 실행하지 못했다. 이는 제품 통과가 아니라 검증 환경
+공백으로 기록한다.
+
+### OCR 릴리스 회귀
+
+Git 제외된 동일 한국 라벨 55장으로 API 36 AVD에서 실행했다.
+
+| 시나리오 | 결과 | 기준선 대비 |
+|---|---|---|
+| D-30 | 정확 40/55(72.73%), 정답 후보 43/55(78.18%), 변형 실패 0 | 변화 0 |
+| D-180 | 정확 39/55(70.91%), 정답 후보 43/55(78.18%), 변형 실패 0 | 변화 0 |
+
+개별 정확 일치와 정답 후보 퇴행도 0건이다. 비공개 결과는
+`qa-private/results/google-play-rc-code3-20260731-{d30,d180}.csv`에만 있으며
+`.gitignore` 적용을 확인했다. 이 결과는 v1.1의 기존 No-Go를 변경하거나 실사용
+OCR 정확도를 주장하는 근거가 아니다.
+
+### 최종 로컬 산출물
+
+아래 파일은 구현 검증용 **미서명 로컬 산출물**이다. Play 업로드 후보로 사용할
+수 없으며 업로드 키로 서명한 뒤 digest를 새로 기록해야 한다.
+
+| 파일 | 크기 | SHA-256 |
+|---|---:|---|
+| `app/build/outputs/apk/debug/app-debug.apk` | 61,500,937 bytes | `9e91f9fdb3ae61adf0bab30c1e4add56850bf479f96a183a0a23d4a8081f7fbd` |
+| `app/build/outputs/apk/release/app-release-unsigned.apk` | 49,283,233 bytes | `e5fef984ddbdef82eb3c8179a5d5489882d6fdb770f1b0cfad900e86b8998690` |
+| `app/build/outputs/bundle/release/app-release.aab` | 39,567,515 bytes | `a721184813bd5afd58d13177498ded7731bd5264d33b46919a30ec48a9983683` |
+
+Release APK에서 package, versionCode 3, versionName 1.0.1, minSdk 26,
+compileSdk·targetSdk 36을 확인했다. 권한 목록에 `INTERNET`가 없고 패키지
+목록에서 `qa-private`, 한국 라벨, OCR benchmark, `local.properties`를
+검출하지 않았다. Release APK와 AAB는 모두 `jar is unsigned`다.
+
+### 미완료·차단 항목
+
+- Play Console의 Play App Signing 등록, 앱 서명 인증서와 업로드 인증서 확인
+- 사용자의 업로드 키로 code 3 AAB 서명 및 서명 후 SHA-256 기록
+- Google Play code 2 원본 AAB 확보와 원스토어 code 2 동일성 확인
+- 실제 code 2 설치 데이터가 유지되는 code 2→3 업데이트 시험
+- API 26·35 에뮬레이터 시험
+- 실제 Android 기기의 카메라, Photo Picker, 알림, WorkManager, 위젯,
+  백업·복원, 회전·재시작 시험
+- 독립 코드 리뷰와 미해결 P0/P1 0건 확인
+
+Room v2 schema 기반 데이터 보존 instrumentation은 통과했지만 실제 Play code 2
+바이너리를 사용하지 않았으므로 실제 업데이트 검증을 대체하지 않는다.
+
 ## API 36 검토 범위
 
 Google 공식 문서 기준으로 다음 변경을 검토한다.
@@ -184,12 +329,12 @@ Google 공식 문서 기준으로 다음 변경을 검토한다.
 한다. 이번 후보는 유료 비공개 테스트 이후 일정 지연 가능성을 고려해 API 36을
 목표로 한다.
 
-## Release Candidate 계약 초안
+## Release Candidate 계약
 
 ### 포함 범위
 
-- 기본 versionCode 3
-- versionName은 사용자 결정 전 미확정(권고안: 1.0.1)
+- versionCode 3
+- versionName 1.0.1
 - API 36과 공식 지원 빌드 도구
 - OCR 결과를 저장값으로 자동 확정하지 않는 확인·수정·취소 흐름
 - 신규 항목의 날짜 초기값 제거와 명시적 선택 전 저장 차단

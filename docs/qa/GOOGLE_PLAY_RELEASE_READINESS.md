@@ -8,9 +8,10 @@
 
 이 판정은 Google Play 프로덕션 출시 여부가 아니라 유료 비공개 테스트에 진입할
 준비가 되었는지를 대상으로 한다. API 36 전환, 날짜 확정 흐름, 파괴적 Room
-fallback 제거, 자동화와 API 36 에뮬레이터 검증은 완료했다. 그러나 업로드 키
-서명, Play App Signing 상태, 실제 code 2 바이너리에서의 업데이트, API 26·35,
-실제 Android 기기, 독립 코드 리뷰가 확인되지 않아 No-Go를 유지한다.
+fallback 제거, 자동화와 API 36 에뮬레이터 검증은 완료했다. Play에서 내려받은
+서명된 code 2 범용 APK와 Room schema도 정적으로 확인했다. 그러나 업로드 키
+보유·업로드 인증서, 실제 code 2 바이너리에서의 업데이트, API 26·35, 실제
+Android 기기, 독립 코드 리뷰가 확인되지 않아 No-Go를 유지한다.
 
 기존 상태인 `v1.0 Released / v1.1 QA No-Go / Archived (Maintenance only)`는
 유효하다. 이번 후보는 기존 v1.1 OCR 정확도 개선판을 다시 출시하는 것이 아니라,
@@ -24,7 +25,8 @@ Google Play 배포 안전성과 사용자의 날짜 확인을 보완하는 별�
 | 자동 품질 게이트·API 36 에뮬레이터 | 완료 |
 | D-30·D-180 OCR 회귀 | 완료, 기준선 대비 퇴행 0 |
 | 업로드 키로 서명된 AAB | 미완료 |
-| Play App Signing·code 2 원본 확인 | 확인 필요 |
+| Play 서명 code 2 범용 APK·Room schema | 완료 |
+| 업로드 키 보유·업로드 인증서 | 확인 필요 |
 | 실제 code 2→3 기기 업데이트 | 미완료 |
 | API 26·35 에뮬레이터 | 미완료(로컬 이미지 없음) |
 | 실제 Android 기기 | 미완료 |
@@ -109,6 +111,41 @@ Google Play code 2와 원스토어 code 2의 동일성은 다음 순서로 확�
 
 Play가 기기 배포용으로 다시 서명한 split APK와 원본 업로드 AAB는 직접 SHA-256
 비교 대상으로 사용하지 않는다.
+
+### 2026-08-03 Play 배포 code 2 정적 검증
+
+사용자가 Play Console의 `2.aab (1.0.0)` 상세 화면과 해당 버전의
+`Signed, universal APK`를 제공했다. APK를 저장소에 복사하거나 Git에 추가하지
+않고 외부 파일 상태로 검사했다.
+
+| 항목 | 확인 결과 |
+|---|---|
+| 파일 크기 | 50,036,980 bytes |
+| 파일 SHA-256 | `087350944f00daad95320ab00a4bfe963ca57f254cff4f3cc0e97354b8f1d2e5` |
+| package | `app.fridgedday` |
+| versionCode / versionName | 2 / 1.0.0 |
+| minSdk / compileSdk / targetSdk | 26 / 35 / 35 |
+| APK 서명 | v2·v3 검증 성공, signer 1개 |
+| 앱 서명 인증서 SHA-256 | `907a3cf5bc68c64a88887a2acb30cf4c46e2aacf5f0a7a652aacba9c006964f6` |
+| signer | `CN=Android, OU=Android, O=Google Inc., L=Mountain View, ST=California, C=US` |
+| Source Stamp | 검증 성공 |
+| 비공개 QA 경로 | 미검출 |
+
+Play가 생성한 범용 APK의 Google signer와 Source Stamp가 검증되므로 이 파일을
+실제 Google Play 배포 code 2 기준 바이너리로 사용한다. 배포 APK에는
+`INTERNET`와 `com.android.vending.CHECK_LICENSE` 권한이 포함돼 있다. 이는
+code 2 APK의 관측 사실이며 원스토어 code 2 또는 원본 업로드 AAB의 권한·바이트
+동일성을 의미하지 않는다.
+
+DEX 정적 검사에서 실제 code 2의 Room 정보도 확인했다.
+
+- DB 파일명: `fridgedday_database`
+- Room identity hash: `7f8f5cf3df30923b938f00c97c561eb2`
+- `items` 테이블과 `index_items_expiryDate` 정의가 저장소의 v2 schema와 일치
+
+따라서 code 2와 code 3의 Room schema·identity hash가 동일하다는 정적 증거가
+확보됐다. 다만 실제 Play 서명 code 2를 설치한 기기에서 code 3으로 업데이트해
+사용자 행이 유지되는 동적 시험을 대체하지 않는다.
 
 ### 현재 main에 포함된 v1.1 QA No-Go 범위
 
@@ -292,17 +329,18 @@ compileSdk·targetSdk 36을 확인했다. 권한 목록에 `INTERNET`가 없고 
 
 ### 미완료·차단 항목
 
-- Play Console의 Play App Signing 등록, 앱 서명 인증서와 업로드 인증서 확인
+- Play Console의 업로드 인증서 SHA-256 및 기존 업로드 키 보유 여부 확인
 - 사용자의 업로드 키로 code 3 AAB 서명 및 서명 후 SHA-256 기록
-- Google Play code 2 원본 AAB 확보와 원스토어 code 2 동일성 확인
+- Google Play code 2 원본 AAB 확보 가능 여부와 원스토어 code 2 동일성 확인
 - 실제 code 2 설치 데이터가 유지되는 code 2→3 업데이트 시험
 - API 26·35 에뮬레이터 시험
 - 실제 Android 기기의 카메라, Photo Picker, 알림, WorkManager, 위젯,
   백업·복원, 회전·재시작 시험
 - 독립 코드 리뷰와 미해결 P0/P1 0건 확인
 
-Room v2 schema 기반 데이터 보존 instrumentation은 통과했지만 실제 Play code 2
-바이너리를 사용하지 않았으므로 실제 업데이트 검증을 대체하지 않는다.
+Room v2 schema 기반 데이터 보존 instrumentation과 실제 Play code 2 APK의 DEX
+schema 일치 검사는 통과했다. 그러나 Play 서명 code 2 설치 상태에서 code 3으로
+업데이트하지 않았으므로 실제 업데이트 검증을 대체하지 않는다.
 
 ## API 36 검토 범위
 

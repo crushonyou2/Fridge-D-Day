@@ -12,8 +12,8 @@ android {
         applicationId = "app.fridgedday"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.1"
+        versionCode = 4
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -111,11 +111,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 
     // ML Kit Text Recognition
-    implementation("com.google.mlkit:text-recognition-korean:16.0.0")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // CameraX
-    val cameraXVersion = "1.3.1"
+    val cameraXVersion = "1.5.3"
     implementation("androidx.camera:camera-core:$cameraXVersion")
     implementation("androidx.camera:camera-camera2:$cameraXVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraXVersion")

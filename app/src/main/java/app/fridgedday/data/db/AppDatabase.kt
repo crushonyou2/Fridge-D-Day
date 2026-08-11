@@ -13,7 +13,7 @@ import app.fridgedday.data.db.entity.ItemEntity
 @Database(
     entities = [ItemEntity::class],
     version = 2,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(
     LocalDateConverter::class,
@@ -33,7 +33,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fridgedday_database"
                 )
-                .fallbackToDestructiveMigration()  // 개발 중이므로 데이터 삭제하고 재생성
                 .build()
                 INSTANCE = instance
                 instance

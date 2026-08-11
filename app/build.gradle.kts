@@ -6,14 +6,14 @@ plugins {
 
 android {
     namespace = "app.fridgedday"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.fridgedday"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.0"
+        targetSdk = 36
+        versionCode = 4
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -68,7 +68,12 @@ android {
         val ocrBenchmarkDir = providers.gradleProperty("ocrBenchmarkDir")
             .orElse("qa-private/ocr-benchmark")
         getByName("androidTest").assets.srcDir(rootProject.file(ocrBenchmarkDir.get()))
+        getByName("androidTest").assets.srcDir(file("schemas"))
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -106,11 +111,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 
     // ML Kit Text Recognition
-    implementation("com.google.mlkit:text-recognition-korean:16.0.0")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // CameraX
-    val cameraXVersion = "1.3.1"
+    val cameraXVersion = "1.5.3"
     implementation("androidx.camera:camera-core:$cameraXVersion")
     implementation("androidx.camera:camera-camera2:$cameraXVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraXVersion")
@@ -126,7 +131,10 @@ dependencies {
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("androidx.room:room-testing:$roomVersion")
+    androidTestImplementation("androidx.room:room-testing:$roomVersion")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.test.services:storage:1.4.2")

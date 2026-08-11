@@ -10,22 +10,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DatePickerField(
     label: String,
-    selectedDate: LocalDate,
+    selectedDate: LocalDate?,
     onDateSelected: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDialog by remember { mutableStateOf(false) }
 
     OutlinedTextField(
-        value = selectedDate.toString(),
+        value = selectedDate?.toString().orEmpty(),
         onValueChange = {},
         label = { Text(label) },
+        placeholder = { Text("날짜를 선택하세요") },
         readOnly = true,
         trailingIcon = {
             IconButton(onClick = { showDialog = true }) {
@@ -40,8 +41,8 @@ fun DatePickerField(
 
     if (showDialog) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = selectedDate
-                .atStartOfDay(ZoneId.systemDefault())
+            initialSelectedDateMillis = (selectedDate ?: LocalDate.now())
+                .atStartOfDay(ZoneOffset.UTC)
                 .toInstant()
                 .toEpochMilli()
         )
@@ -53,7 +54,7 @@ fun DatePickerField(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
                             val instant = Instant.ofEpochMilli(millis)
-                            val date = instant.atZone(ZoneId.systemDefault()).toLocalDate()
+                            val date = instant.atZone(ZoneOffset.UTC).toLocalDate()
                             onDateSelected(date)
                         }
                         showDialog = false

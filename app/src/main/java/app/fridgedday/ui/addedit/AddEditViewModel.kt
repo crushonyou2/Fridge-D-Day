@@ -1,10 +1,11 @@
 package app.fridgedday.ui.addedit
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.fridgedday.data.db.entity.ItemEntity
 import app.fridgedday.data.db.entity.StorageLocation
-import app.fridgedday.data.repo.ItemRepository
+import app.fridgedday.data.repo.AddEditItemRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +20,9 @@ data class AddEditUiState(
     val location: StorageLocation = StorageLocation.FRIDGE,
     val quantity: String = "",
     val unit: String = "",
-    val expiryDate: LocalDate = LocalDate.now().plusDays(7),
+    val expiryDate: LocalDate? = null,
+    val isExpiryDateConfirmed: Boolean = false,
+    val pendingOcrDate: LocalDate? = null,
     val daysBeforeNotify: Int = 3,
     val note: String = "",
     val isLoading: Boolean = false,
@@ -28,12 +31,15 @@ data class AddEditUiState(
 )
 
 class AddEditViewModel(
-    private val repository: ItemRepository,
+    private val repository: AddEditItemRepository,
     private val itemId: Long?
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AddEditUiState())
+    private val _uiState = MutableStateFlow(
+        AddEditUiState(isLoading = itemId != null)
+    )
     val uiState: StateFlow<AddEditUiState> = _uiState.asStateFlow()
+    private var originalItem: ItemEntity? = null
 
     init {
         if (itemId != null) {
@@ -44,27 +50,38 @@ class AddEditViewModel(
     private fun loadItem(id: Long) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val item = repository.getById(id)
-            if (item != null) {
-                _uiState.update {
-                    it.copy(
-                        isEditMode = true,
-                        name = item.name,
-                        category = item.category ?: "",
-                        location = item.location,
-                        quantity = item.quantity?.toString() ?: "",
-                        unit = item.unit ?: "",
-                        expiryDate = item.expiryDate,
-                        daysBeforeNotify = item.daysBeforeNotify,
-                        note = item.note ?: "",
-                        isLoading = false
-                    )
+            try {
+                val item = repository.getById(id)
+                if (item != null) {
+                    originalItem = item
+                    _uiState.update {
+                        it.copy(
+                            isEditMode = true,
+                            name = item.name,
+                            category = item.category ?: "",
+                            location = item.location,
+                            quantity = item.quantity?.toString() ?: "",
+                            unit = item.unit ?: "",
+                            expiryDate = item.expiryDate,
+                            isExpiryDateConfirmed = true,
+                            daysBeforeNotify = item.daysBeforeNotify,
+                            note = item.note ?: "",
+                            isLoading = false
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "항목을 찾을 수 없습니다"
+                        )
+                    }
                 }
-            } else {
+            } catch (_: Exception) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "항목을 찾을 수 없습니다"
+                        errorMessage = "항목을 불러오지 못했습니다"
                     )
                 }
             }
@@ -91,8 +108,40 @@ class AddEditViewModel(
         _uiState.update { it.copy(unit = unit) }
     }
 
-    fun updateExpiryDate(date: LocalDate) {
-        _uiState.update { it.copy(expiryDate = date) }
+    fun confirmManualExpiryDate(date: LocalDate) {
+        _uiState.update {
+            it.copy(
+                expiryDate = date,
+                isExpiryDateConfirmed = true,
+                pendingOcrDate = null,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun proposeOcrDate(date: LocalDate) {
+        _uiState.update {
+            it.copy(
+                pendingOcrDate = date,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun confirmPendingOcrDate() {
+        _uiState.update { state ->
+            val pendingDate = state.pendingOcrDate ?: return@update state
+            state.copy(
+                expiryDate = pendingDate,
+                isExpiryDateConfirmed = true,
+                pendingOcrDate = null,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun cancelPendingOcrDate() {
+        _uiState.update { it.copy(pendingOcrDate = null) }
     }
 
     fun updateDaysBeforeNotify(days: Int) {
@@ -112,25 +161,45 @@ class AddEditViewModel(
             return
         }
 
+        val confirmedExpiryDate = state.expiryDate
+        if (confirmedExpiryDate == null || !state.isExpiryDateConfirmed) {
+            _uiState.update { it.copy(errorMessage = "유통기한을 선택하고 확인해주세요") }
+            return
+        }
+
+        if (itemId != null && originalItem == null) {
+            _uiState.update { it.copy(errorMessage = "수정할 항목을 불러오지 못했습니다") }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
             try {
                 val quantityValue = state.quantity.toFloatOrNull()
 
-                val item = ItemEntity(
-                    id = itemId ?: 0,
+                val existingItem = originalItem
+                val item = existingItem?.copy(
                     name = state.name.trim(),
                     category = state.category.trim().ifBlank { null },
                     location = state.location,
                     quantity = quantityValue,
                     unit = state.unit.trim().ifBlank { null },
-                    expiryDate = state.expiryDate,
+                    expiryDate = confirmedExpiryDate,
+                    daysBeforeNotify = state.daysBeforeNotify,
+                    note = state.note.trim().ifBlank { null }
+                ) ?: ItemEntity(
+                    name = state.name.trim(),
+                    category = state.category.trim().ifBlank { null },
+                    location = state.location,
+                    quantity = quantityValue,
+                    unit = state.unit.trim().ifBlank { null },
+                    expiryDate = confirmedExpiryDate,
                     daysBeforeNotify = state.daysBeforeNotify,
                     note = state.note.trim().ifBlank { null }
                 )
 
-                if (state.isEditMode) {
+                if (existingItem != null) {
                     repository.update(item)
                 } else {
                     repository.insert(item)
@@ -150,5 +219,16 @@ class AddEditViewModel(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+}
+
+class AddEditViewModelFactory(
+    private val repository: AddEditItemRepository,
+    private val itemId: Long?
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        require(modelClass.isAssignableFrom(AddEditViewModel::class.java))
+        return AddEditViewModel(repository, itemId) as T
     }
 }

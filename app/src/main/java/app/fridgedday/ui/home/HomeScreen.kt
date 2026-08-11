@@ -23,9 +23,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
 import app.fridgedday.data.db.AppDatabase
 import app.fridgedday.data.pref.SettingsDataStore
@@ -42,6 +45,7 @@ fun HomeScreen(
     navController: NavHostController
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val dataStore = remember { SettingsDataStore(context) }
     val settings by dataStore.settingsFlow.collectAsState(initial = app.fridgedday.data.pref.AppSettings())
@@ -57,6 +61,19 @@ fun HomeScreen(
     var showWelcomeDialog by remember { mutableStateOf(false) }
     var hasNotificationPermission by remember {
         mutableStateOf(PermissionUtils.hasNotificationPermission(context))
+    }
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasNotificationPermission =
+                    PermissionUtils.hasNotificationPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     // 첫 실행 여부 확인 (한 번만 실행)
@@ -290,12 +307,26 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
-                        Button(
-                            onClick = {
-                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Button(
+                                onClick = {
+                                    permissionLauncher.launch(
+                                        Manifest.permission.POST_NOTIFICATIONS
+                                    )
+                                }
+                            ) {
+                                Text("허용")
                             }
-                        ) {
-                            Text("허용")
+                            TextButton(
+                                onClick = {
+                                    PermissionUtils.openAppSettings(context)
+                                },
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            ) {
+                                Text("앱 설정")
+                            }
                         }
                     }
                 }

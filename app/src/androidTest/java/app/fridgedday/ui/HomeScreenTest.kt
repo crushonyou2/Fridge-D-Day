@@ -1,11 +1,17 @@
 package app.fridgedday.ui
 
+import android.content.Context
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.navigation.compose.rememberNavController
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.fridgedday.FridgeDDayTheme
+import app.fridgedday.data.db.AppDatabase
+import app.fridgedday.data.pref.SettingsDataStore
 import app.fridgedday.ui.home.HomeScreen
+import kotlinx.coroutines.runBlocking
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,6 +21,13 @@ class HomeScreenTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    @Before
+    fun resetAppState() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        AppDatabase.getDatabase(context).clearAllTables()
+        SettingsDataStore(context).setFirstLaunchCompleted()
+    }
 
     @Test
     fun homeScreen_displaysTitle() {
@@ -40,7 +53,7 @@ class HomeScreenTest {
         }
 
         composeTestRule
-            .onNodeWithText("아직 항목이 없어요")
+            .onNodeWithText("등록된 식품이 없어요")
             .assertIsDisplayed()
     }
 

@@ -10,7 +10,6 @@ import app.fridgedday.data.repo.SettingsRepository
 import app.fridgedday.util.DateUtils
 import app.fridgedday.util.NotificationUtils
 import kotlinx.coroutines.flow.first
-import java.time.LocalDate
 
 class ExpiryCheckWorker(
     context: Context,
@@ -34,8 +33,6 @@ class ExpiryCheckWorker(
 
             // Get all items
             val allItems = itemRepository.observeAll().first()
-            val today = LocalDate.now()
-
             // Filter expiring items (within threshold but not expired)
             val expiringItems = allItems.filter { item ->
                 val days = DateUtils.daysUntil(item.expiryDate)
@@ -62,8 +59,7 @@ class ExpiryCheckWorker(
             WorkScheduler.scheduleDailyCheck(applicationContext, settings)
 
             Result.success()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
             Result.failure()
         }
     }

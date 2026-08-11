@@ -6,7 +6,6 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Matrix
-import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
@@ -58,7 +57,7 @@ object TextRecognitionHelper {
         for (rot in listOf(baseRotation, baseRotation + 90)) {
             val rotated = rotateBitmap(bitmap, rot.toFloat())
             try {
-                val attempt = processBitmap(rotated, "ORG_$rot", today)
+                val attempt = processBitmap(rotated, today)
                 if (attempt.failed) failedVariantCount += 1 else processedVariantCount += 1
                 attempt.result?.let { result ->
                     candidates.addAll(result.candidates)
@@ -75,7 +74,7 @@ object TextRecognitionHelper {
             for (rot in listOf(baseRotation, baseRotation + 90)) {
                 val rotated = rotateBitmap(inverted, rot.toFloat())
                 try {
-                    val attempt = processBitmap(rotated, "INV_$rot", today)
+                    val attempt = processBitmap(rotated, today)
                     if (attempt.failed) failedVariantCount += 1 else processedVariantCount += 1
                     attempt.result?.let { result ->
                         candidates.addAll(result.candidates)
@@ -102,15 +101,11 @@ object TextRecognitionHelper {
 
     private suspend fun processBitmap(
         bitmap: Bitmap,
-        tag: String,
         today: LocalDate,
     ): ProcessAttempt {
         val image = InputImage.fromBitmap(bitmap, 0)
         return try {
             val result = recognizer.process(image).await()
-            // 로그 확인 (디버깅용)
-            val logText = result.text.replace("\n", " ")
-            Log.d("OCR_RAW_$tag", logText)
             ProcessAttempt(
                 result = ProcessResult(
                     candidates = ExpiryDateParser.extractDates(result.text, today),
@@ -121,7 +116,6 @@ object TextRecognitionHelper {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w("OCR_ERROR_$tag", "Text recognition failed", e)
             ProcessAttempt(result = null, failed = true)
         }
     }

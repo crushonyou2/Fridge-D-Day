@@ -2,7 +2,6 @@ package app.fridgedday.ui.addedit
 
 import android.Manifest
 import android.graphics.BitmapFactory
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,14 +18,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import app.fridgedday.data.db.AppDatabase
 import app.fridgedday.data.db.entity.StorageLocation
 import app.fridgedday.data.repo.ItemRepository
 import app.fridgedday.ui.components.CameraPreview
 import app.fridgedday.ui.components.DatePickerField
+import app.fridgedday.util.PermissionUtils
 import app.fridgedday.util.ocr.TextRecognitionHelper
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,18 +39,22 @@ fun AddEditScreen(
     itemId: Long?
 ) {
     val context = LocalContext.current
-    val viewModel = remember(itemId) {
+    val repository = remember {
         val repository = ItemRepository(AppDatabase.getDatabase(context).itemDao())
-        AddEditViewModel(repository, itemId)
+        repository
     }
+    val viewModel: AddEditViewModel = viewModel(
+        key = "add-edit-${itemId ?: "new"}",
+        factory = AddEditViewModelFactory(repository, itemId)
+    )
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
     // OCR 관련 상태
     var showCamera by remember { mutableStateOf(false) }
-    var hasCameraPermission by remember { mutableStateOf(false) }
     var isProcessingOCR by remember { mutableStateOf(false) }
+    var ocrDateToEdit by remember { mutableStateOf<LocalDate?>(null) }
 
     // 1. 갤러리 이미지 선택 런처 (새로 추가됨)
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -59,20 +67,23 @@ fun AddEditScreen(
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
                         val bitmap = BitmapFactory.decodeStream(inputStream)
                         
-                        // 갤러리 이미지는 회전 정보가 없을 수 있으므로 0도 시도 후 실패 시 90도 시도
                         val recognizedDate = TextRecognitionHelper.extractExpiryDate(bitmap, 0)
-                            ?: TextRecognitionHelper.extractExpiryDate(bitmap, 90)
 
                         if (recognizedDate != null) {
-                            viewModel.updateExpiryDate(recognizedDate)
-                            snackbarHostState.showSnackbar("갤러리 이미지 인식 성공: $recognizedDate")
+                            viewModel.proposeOcrDate(recognizedDate)
+                            snackbarHostState.showSnackbar(
+                                "날짜 후보를 찾았습니다. 확인 후 저장해주세요."
+                            )
                         } else {
-                            snackbarHostState.showSnackbar("인식 실패: 유통기한 날짜를 찾을 수 없습니다.")
+                            snackbarHostState.showSnackbar(
+                                "날짜를 찾지 못했습니다. 날짜를 직접 선택해주세요."
+                            )
                         }
                     }
-                } catch (e: Exception) {
-                    snackbarHostState.showSnackbar("오류 발생: ${e.message}")
-                    e.printStackTrace()
+                } catch (_: Exception) {
+                    snackbarHostState.showSnackbar(
+                        "이미지를 처리하지 못했습니다. 날짜를 직접 선택해주세요."
+                    )
                 } finally {
                     isProcessingOCR = false
                 }
@@ -84,12 +95,17 @@ fun AddEditScreen(
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        hasCameraPermission = isGranted
         if (isGranted) {
             showCamera = true
         } else {
             coroutineScope.launch {
-                snackbarHostState.showSnackbar("카메라 권한이 필요합니다")
+                val result = snackbarHostState.showSnackbar(
+                    message = "촬영하려면 카메라 권한이 필요합니다.",
+                    actionLabel = "설정"
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    PermissionUtils.openAppSettings(context)
+                }
             }
         }
     }
@@ -243,7 +259,7 @@ fun AddEditScreen(
                     DatePickerField(
                         label = "",
                         selectedDate = uiState.expiryDate,
-                        onDateSelected = { viewModel.updateExpiryDate(it) },
+                        onDateSelected = { viewModel.confirmManualExpiryDate(it) },
                         modifier = Modifier.weight(1.2f)
                     )
 
@@ -286,6 +302,20 @@ fun AddEditScreen(
                 if (isProcessingOCR) {
                     Text(
                         text = "이미지 분석 및 날짜 인식 중...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                } else if (uiState.expiryDate == null) {
+                    Text(
+                        text = "날짜를 선택해야 저장할 수 있습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                } else if (uiState.isExpiryDateConfirmed) {
+                    Text(
+                        text = "확인된 날짜: ${uiState.expiryDate}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(top = 4.dp)
@@ -338,19 +368,22 @@ fun AddEditScreen(
 
                 coroutineScope.launch {
                     try {
-                        // 1차 시도: 원본 각도
                         val recognizedDate = TextRecognitionHelper.extractExpiryDate(bitmap, 0)
-                            // 2차 시도: 90도 회전 (실패 시)
-                            ?: TextRecognitionHelper.extractExpiryDate(bitmap, 90)
 
                         if (recognizedDate != null) {
-                            viewModel.updateExpiryDate(recognizedDate)
-                            snackbarHostState.showSnackbar("날짜를 인식했습니다: $recognizedDate")
+                            viewModel.proposeOcrDate(recognizedDate)
+                            snackbarHostState.showSnackbar(
+                                "날짜 후보를 찾았습니다. 확인 후 저장해주세요."
+                            )
                         } else {
-                            snackbarHostState.showSnackbar("날짜를 인식하지 못했습니다")
+                            snackbarHostState.showSnackbar(
+                                "날짜를 찾지 못했습니다. 날짜를 직접 선택해주세요."
+                            )
                         }
-                    } catch (e: Exception) {
-                        snackbarHostState.showSnackbar("OCR 처리 실패: ${e.message}")
+                    } catch (_: Exception) {
+                        snackbarHostState.showSnackbar(
+                            "이미지를 처리하지 못했습니다. 날짜를 직접 선택해주세요."
+                        )
                     } finally {
                         isProcessingOCR = false
                     }
@@ -360,5 +393,105 @@ fun AddEditScreen(
                 showCamera = false
             }
         )
+    }
+
+    uiState.pendingOcrDate?.let { pendingDate ->
+        OcrDateConfirmationDialog(
+            recognizedDate = pendingDate,
+            onConfirm = { viewModel.confirmPendingOcrDate() },
+            onEdit = {
+                ocrDateToEdit = pendingDate
+                viewModel.cancelPendingOcrDate()
+            },
+            onCancel = { viewModel.cancelPendingOcrDate() }
+        )
+    }
+
+    ocrDateToEdit?.let { initialDate ->
+        OcrDateEditDialog(
+            initialDate = initialDate,
+            onDateSelected = { selectedDate ->
+                viewModel.confirmManualExpiryDate(selectedDate)
+                ocrDateToEdit = null
+            },
+            onDismiss = { ocrDateToEdit = null }
+        )
+    }
+}
+
+@Composable
+internal fun OcrDateConfirmationDialog(
+    recognizedDate: LocalDate,
+    onConfirm: () -> Unit,
+    onEdit: () -> Unit,
+    onCancel: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("인식된 날짜가 맞나요?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = recognizedDate.toString(),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text("라벨의 실제 유통기한과 같은지 확인해주세요.")
+            }
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("이 날짜 확인")
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onEdit) {
+                    Text("수정")
+                }
+                TextButton(onClick = onCancel) {
+                    Text("취소")
+                }
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OcrDateEditDialog(
+    initialDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialDate
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+            .toEpochMilli()
+    )
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val selectedDate = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneOffset.UTC)
+                            .toLocalDate()
+                        onDateSelected(selectedDate)
+                    }
+                }
+            ) {
+                Text("날짜 확인")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
     }
 }

@@ -35,6 +35,7 @@ proguard/
 captures/
 
 # IntelliJ
+.idea/
 *.iml
 .idea/workspace.xml
 .idea/tasks.xml
@@ -98,6 +99,9 @@ Desktop.ini
 # Other
 *.swp
 .~lock.*
+
+# Local AI tool settings
+.claude/
 
 # Local OCR QA data (real photos, labels, and measured outputs)
 /qa-private/

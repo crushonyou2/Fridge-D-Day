@@ -4,7 +4,7 @@
 
 [![Release](https://img.shields.io/badge/release-v1.0.2-brightgreen)](https://m.onestore.co.kr/v2/ko-kr/app/0001003331)
 [![Platform](https://img.shields.io/badge/platform-Android%208.0%2B-3DDC84?logo=android&logoColor=white)](https://m.onestore.co.kr/v2/ko-kr/app/0001003331)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.22-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Tests](https://img.shields.io/badge/tests-29%20unit%20%2B%2015%20instrumented-blue)](#검증된-결과)
 [![CI](https://img.shields.io/badge/CI-required%20on%20main-success?logo=githubactions&logoColor=white)](.github/workflows)
 
@@ -77,7 +77,7 @@ UI·상태 관리·데이터 접근을 분리해 화면 로직이 Room 구현에
 |---|---|
 | 언어·UI | Kotlin, Jetpack Compose, Material Design 3 |
 | 상태·구조 | ViewModel, StateFlow, MVVM, Repository |
-| 데이터 | Room, DataStore, Gson |
+| 데이터 | Room, DataStore, `org.json` |
 | 백그라운드 | WorkManager, Android Notification |
 | 카메라·OCR | CameraX, Google ML Kit Text Recognition |
 | 부가 기능 | Glance App Widget, 로컬 JSON 백업·복원 |
@@ -99,7 +99,7 @@ UI·상태 관리·데이터 접근을 분리해 화면 로직이 Room 구현에
 
 **OCR 회귀 측정**
 
-출시 후 **독립 한국 식품 라벨 55장**으로 동일 표본 회귀 환경을 만들고, 빌드마다 같은 조건에서 재측정했습니다.
+출시 후 **독립 한국 식품 라벨 55장**으로 동일 표본 회귀 환경을 만들고, 인식 로직을 손볼 때마다 같은 55장·같은 평가일 조건으로 재측정했습니다.
 
 | 지표 (D-30 시나리오 기준) | 값 |
 |---|---|

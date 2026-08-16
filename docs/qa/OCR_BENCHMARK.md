@@ -29,7 +29,7 @@
 
 ## 독립 한국 라벨 55장 v1.1 기준선 (2026-07-22)
 
-- 코딩 정본/브랜치/수정 전 코드: `C:\Users\joji\Documents\취준자료\project-repos\Fridge-D-Day` / `codex/fridge-ocr-qa-baseline` / `5cd1402`.
+- 코딩 정본/브랜치/수정 전 코드: `<로컬 저장소 루트>\Fridge-D-Day` / `codex/fridge-ocr-qa-baseline` / `5cd1402`.
 - 로컬 입력: `qa-private/korean-labels-55`. 실제 사진·manifest·sample별 결과는 `.gitignore`의 `qa-private/`에만 있다.
 - 기존 20장과 신규 HEIC 35장은 각각 SHA-256이 모두 고유하다. 변환본을 합친 55장도 해시가 모두 고유하고, 육안으로 서로 다른 제품·포장을 확인했다. 16×16 평균 해시의 최근접 쌍도 256비트 중 해밍 거리 54로 근접 중복 징후가 없었다.
 - HEIC는 원본을 보존한 채 `heif-convert 1.23.0` 품질 95 → FFmpeg `2025-10-05` JPEG q2로 변환했다. 현재 55장은 `baseline-v1-width` 규격으로 폭을 2048px에 맞췄고, 세로 사진 33장은 긴 변이 2048px를 초과하며 최대 2730px다. 원본/변환 SHA 매핑과 도구 버전은 로컬 `conversion-manifest.csv`, `conversion-metadata.txt`에 있다.

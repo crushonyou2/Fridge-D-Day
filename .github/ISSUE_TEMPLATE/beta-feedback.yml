@@ -1,12 +1,12 @@
 name: 유지보수 이슈
-description: Archived 프로젝트의 보안 또는 빌드 재현성 문제만 기록합니다.
+description: 유지보수만 수행하는 프로젝트입니다. 보안 또는 빌드 재현성 문제만 기록합니다.
 title: "[Maintenance] "
 body:
   - type: markdown
     attributes:
       value: |
-        프로젝트는 v1.0 Released / v1.1 QA No-Go / Archived 상태입니다.
-        추가 사용자 베타, OCR 개선, 신규 기능, v1.1 출시와 스토어 업데이트는 진행하지 않습니다.
+        프로젝트는 v1.0.2 Released (원스토어, 2026-08-12) 상태이고 보존에 필요한 최소 유지보수만 합니다.
+        추가 사용자 베타, OCR 정확도 개선, 신규 기능은 진행하지 않습니다.
         식품 사진, 개인 식품 기록, 정답 원본, 비밀값은 첨부하지 마세요.
   - type: input
     id: environment

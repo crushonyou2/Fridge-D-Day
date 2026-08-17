@@ -2,6 +2,14 @@
 
 확인일: 2026-07-31 (Asia/Seoul)
 
+> **이 문서는 2026-07-31 시점 기록이다. 이후 상태가 바뀌었다.**
+> 여기서 검토한 Release Candidate 계열 변경(날짜 확정 흐름, Room 파괴적 fallback 제거, API 36)은
+> 2026-08-12 **v1.0.2로 원스토어에 배포됐다**. 현재 상태는 `v1.0.2 Released (원스토어) / 공개 배포 이력 2건`이며
+> 아래 본문의 `Archived (Maintenance only)` 표기는 더 이상 현재 상태가 아니다.
+> Google Play 미제출과 Paid Closed Test No-Go 판정 자체는 그대로 유효하다.
+> 아래 판정 기록은 시점 기록으로 보존하며 소급 수정하지 않는다. 현재 사실은
+> [QA_RELEASE_RECORD.md](../../QA_RELEASE_RECORD.md)를 정본으로 본다.
+
 ## 현재 판정
 
 **로컬 Release Candidate 보완·검증 완료. Paid Closed Test No-Go.**
@@ -13,8 +21,8 @@ fallback 제거, 자동화와 API 36 에뮬레이터 검증은 완료했다. Pla
 그러나 업로드 키로 서명된 code 3 AAB, 실제 code 2 바이너리에서의 업데이트,
 API 26·35, 실제 Android 기기, 독립 코드 리뷰가 확인되지 않아 No-Go를 유지한다.
 
-기존 상태인 `v1.0 Released / v1.1 QA No-Go / Archived (Maintenance only)`는
-유효하다. 이번 후보는 기존 v1.1 OCR 정확도 개선판을 다시 출시하는 것이 아니라,
+확인일 시점의 기존 상태인 `v1.0 Released / v1.1 QA No-Go / Archived (Maintenance only)`는
+그때 기준으로 유효했다(2026-08-12 v1.0.2 배포로 갱신됨 — 위 상단 주석 참조). 이번 후보는 기존 v1.1 OCR 정확도 개선판을 다시 출시하는 것이 아니라,
 Google Play 배포 안전성과 사용자의 날짜 확인을 보완하는 별도 Release Candidate다.
 
 | Go 조건 | 현재 상태 |

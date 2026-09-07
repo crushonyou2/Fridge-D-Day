@@ -67,20 +67,32 @@ fun AddEditScreen(
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
                         val bitmap = BitmapFactory.decodeStream(inputStream)
                         
-                        val recognizedDate = TextRecognitionHelper.extractExpiryDate(bitmap, 0)
+                        val evaluation = TextRecognitionHelper.evaluateExpiryDate(bitmap, 0)
+                        val recognizedDate = evaluation.selectedDate
+                        // showSnackbar는 스낵바가 닫힐 때까지 반환하지 않는다. 진행 표시를 먼저 끈다.
+                        isProcessingOCR = false
 
-                        if (recognizedDate != null) {
-                            viewModel.proposeOcrDate(recognizedDate)
-                            snackbarHostState.showSnackbar(
-                                "날짜 후보를 찾았습니다. 확인 후 저장해주세요."
-                            )
-                        } else {
-                            snackbarHostState.showSnackbar(
-                                "날짜를 찾지 못했습니다. 날짜를 직접 선택해주세요."
-                            )
+                        when {
+                            recognizedDate != null -> {
+                                viewModel.proposeOcrDate(recognizedDate)
+                                snackbarHostState.showSnackbar(
+                                    "날짜 후보를 찾았습니다. 확인 후 저장해주세요."
+                                )
+                            }
+                            evaluation.processedVariantCount == 0 && evaluation.failedVariantCount > 0 -> {
+                                snackbarHostState.showSnackbar(
+                                    "문자 인식을 준비하지 못했습니다. 인터넷 연결 후 다시 시도하거나 날짜를 직접 선택해주세요."
+                                )
+                            }
+                            else -> {
+                                snackbarHostState.showSnackbar(
+                                    "날짜를 찾지 못했습니다. 날짜를 직접 선택해주세요."
+                                )
+                            }
                         }
                     }
                 } catch (_: Exception) {
+                    isProcessingOCR = false
                     snackbarHostState.showSnackbar(
                         "이미지를 처리하지 못했습니다. 날짜를 직접 선택해주세요."
                     )
@@ -368,19 +380,31 @@ fun AddEditScreen(
 
                 coroutineScope.launch {
                     try {
-                        val recognizedDate = TextRecognitionHelper.extractExpiryDate(bitmap, 0)
+                        val evaluation = TextRecognitionHelper.evaluateExpiryDate(bitmap, 0)
+                        val recognizedDate = evaluation.selectedDate
+                        // showSnackbar는 스낵바가 닫힐 때까지 반환하지 않는다. 진행 표시를 먼저 끈다.
+                        isProcessingOCR = false
 
-                        if (recognizedDate != null) {
-                            viewModel.proposeOcrDate(recognizedDate)
-                            snackbarHostState.showSnackbar(
-                                "날짜 후보를 찾았습니다. 확인 후 저장해주세요."
-                            )
-                        } else {
-                            snackbarHostState.showSnackbar(
-                                "날짜를 찾지 못했습니다. 날짜를 직접 선택해주세요."
-                            )
+                        when {
+                            recognizedDate != null -> {
+                                viewModel.proposeOcrDate(recognizedDate)
+                                snackbarHostState.showSnackbar(
+                                    "날짜 후보를 찾았습니다. 확인 후 저장해주세요."
+                                )
+                            }
+                            evaluation.processedVariantCount == 0 && evaluation.failedVariantCount > 0 -> {
+                                snackbarHostState.showSnackbar(
+                                    "문자 인식을 준비하지 못했습니다. 인터넷 연결 후 다시 시도하거나 날짜를 직접 선택해주세요."
+                                )
+                            }
+                            else -> {
+                                snackbarHostState.showSnackbar(
+                                    "날짜를 찾지 못했습니다. 날짜를 직접 선택해주세요."
+                                )
+                            }
                         }
                     } catch (_: Exception) {
+                        isProcessingOCR = false
                         snackbarHostState.showSnackbar(
                             "이미지를 처리하지 못했습니다. 날짜를 직접 선택해주세요."
                         )

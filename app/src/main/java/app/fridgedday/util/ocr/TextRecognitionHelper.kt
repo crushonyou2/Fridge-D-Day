@@ -6,6 +6,7 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Matrix
+import android.util.Log
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
@@ -14,6 +15,8 @@ import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 
 object TextRecognitionHelper {
+
+    private const val TAG = "OcrHelper"
 
     data class OcrEvaluation(
         val selectedDate: LocalDate?,
@@ -116,6 +119,8 @@ object TextRecognitionHelper {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // 삼키지 않고 남긴다. 모듈 미준비와 그 밖의 실패를 사후에 구분할 수 있어야 한다.
+            Log.w(TAG, "OCR variant failed: ${e.javaClass.simpleName}: ${e.message}")
             ProcessAttempt(result = null, failed = true)
         }
     }

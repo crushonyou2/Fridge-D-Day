@@ -179,7 +179,20 @@ bundled dependency의 모델 자산(`Kore_ctc`, `Latn_ctc`)은 APK에 포함되�
 
 - 이번 오프라인 수동 확인은 A32/API 33 단일 기기, 실제 라벨 1회다. 정확도 일반화 근거가 아니라 첫 실행 가용성 확인이다.
 - Release APK는 R8 빌드·모델 패키징·권한·비공개자료 제외까지 확인했지만 로컬 산출물이 unsigned라 해당 APK 자체를 adb 설치하지 않았다. 기능 경로는 동일 dependency의 signed debug 패키지로 검증했다.
-- 새 bundled 후보는 아직 merge·원스토어 배포되지 않았다.
+- bundled 변경은 2026-09-09 PR #9로 `main`에 merge했다. 원스토어에는 아직 새 버전으로 배포하지 않았다.
+
+## 5차 결과 — Phase 3/4 format-gap A32 측정 (2026-09-09)
+
+같은 Galaxy A32(SM-A325N, API 33)에서 실제 촬영일 기반 format-gap set을 측정했다. source는 카카오톡을 거치지 않고 기기에서 직접 가져온 JPEG를 사용했다. 2026-09-09 시각 메타데이터는 남아 있지만 `DateTimeOriginal`은 비어 있어 카메라 원본 포맷 자체로 일반화하지 않는다. 카카오톡 전송본은 benchmark source로 쓰지 않았다.
+
+- 식품 primary: `YYYY년 MM월 DD일` 1장 → exact `1/1`, expected-candidate `1/1`, failed variant `0`.
+- 생활권 추가 탐색에서도 식품 연속 `YYYYMMDD`·`YYMMDD`는 확보하지 못해 목표 사용자 성능은 미측정으로 남겼다.
+- 비식품 auxiliary format-only probe: `YYYYMMDD` 5장 + `MMDDYYYY` 1장. 1차 잠정 측정은 사람이 읽은 정답 2건이 잘못돼 제외했다. 사용자 확인으로 ground truth를 수정한 뒤 다시 실행한 최종 결과는 전체 exact `4/6`, any-candidate `4/6`, expected-candidate `4/6`, failed variant `0`.
+- `YYYYMMDD`만 보면 exact `4/5` (80%, n=5); 실패는 `no_date_candidate` 1건뿐이었다. 따라서 반복 parser 원인으로 판정하지 않았다.
+- `MMDDYYYY` 1장은 `no_date_candidate`; 현재 compact parser 지원 밖이지만 primary target이 아닌 단일 보조 표본이라 parser 확장은 하지 않았다.
+- `MM/YYYY`, `YYYYMM` 월 단위 표본과 인쇄가 가려진 추가 `MMDDYYYY`는 exact-date benchmark에서 제외했다.
+
+이 측정은 형식 gap을 닫기 위한 소규모 실사진 관측이다. 55장 고정 회귀와 합치지 않고, 비식품 auxiliary 결과를 한국 식품 라벨 정확도로 일반화하지 않는다.
 ## 재현 방법
 
 ```powershell

@@ -10,7 +10,7 @@
 - v1.0을 원스토어에 출시했다.
 - 출시 후 v1.1 후보에 독립 한국 식품 라벨 55장 QA와 릴리스 게이트를 적용했고, 잔여 오답과 표본 공백을 근거로 **배포를 보류(No-Go)**했다. 이는 프로젝트 전체의 No-Go나 “정확도가 낮아 포기”한 결과가 아니라, 측정과 회귀 기준으로 검증되지 않은 업데이트를 차단한 릴리스 판단이다.
 - **보류 사유를 정확도가 아닌 제품 구조로 해결하고 2026-08-12에 v1.0.2를 원스토어에 배포했다.** 공개 배포 이력은 v1.0 → v1.0.2 2건이다. 상세는 아래 「6. 보류 이후 — v1.0.2」.
-- 2026-09-09부터 QA hardening을 재개했다. 현재 공개 버전은 여전히 v1.0.2이고 v1.1은 Release No-Go 상태를 유지한다. bundled Korean ML Kit 후보 검증과 누락 형식 실사진 coverage 수집을 진행하며, 이후 별도 UI/UX 리디자인과 전체 검증을 거쳐 새 원스토어 공개 버전을 제품 완료 기준으로 삼는다.
+- 2026-09-09부터 QA hardening을 재개했다. 현재 공개 버전은 여전히 v1.0.2이고 v1.1은 Release No-Go 상태를 유지한다. bundled Korean ML Kit 전환은 검증 후 `main`에 반영했고, 누락 형식 Phase 3 수집과 Phase 4 A32 측정도 같은 날 닫았다. 다음 단계는 별도 UI/UX 리디자인과 전체 검증이며, 새 원스토어 공개 버전을 제품 완료 기준으로 삼는다.
 
 > **2026-08-15 개정 이력**: 이 문서는 2026-07-22 종료 시점 판정(`v1.0 Released / v1.1 QA No-Go / Archived`)을 담고 있었다.
 > 2026-08-12 v1.0.2 배포로 그 판정이 더 이상 현재 상태가 아니므로 최종 상태와 검증 사실을 갱신했다.
@@ -87,9 +87,9 @@ v1.1을 보류한 사유는 **D-30 기준 오답 15/55**였다. 정확도를 더
   ⚠️ 에뮬레이터 검증은 API 36, 이번 실기기 검증은 API 33이다. 같은 조건으로 취급하지 않는다.
 - v1.0.2는 **OCR 인식 정확도를 개선한 버전이 아니다.** 55장 기준선 수치는 v1.1 QA 시점 값 그대로이며, 달라진 것은 잘못된 값이 저장되는 경로다.
 
-### 7. QA hardening 재개 — bundled Korean ML Kit 후보 (2026-09-09, 미배포)
+### 7. QA hardening 재개 — bundled Korean ML Kit main 반영 (2026-09-09, 미배포)
 
-2026-08-23 실기기 검증에서 확인된 unbundled 한국어 OCR의 첫 실행 모듈 의존성을 없애기 위해, 개발 브랜치 `feat/bundled-mlkit`에서 한국어 OCR 의존성을 `com.google.mlkit:text-recognition-korean:16.0.1`로 전환했다. 현재 원스토어 공개본은 여전히 v1.0.2이며 이 변경은 아직 merge·배포하지 않았다.
+2026-08-23 실기기 검증에서 확인된 unbundled 한국어 OCR의 첫 실행 모듈 의존성을 없애기 위해 한국어 OCR 의존성을 `com.google.mlkit:text-recognition-korean:16.0.1`로 전환했다. 검증을 마친 변경은 PR #9로 `main`에 merge했다. 현재 원스토어 공개본은 여전히 v1.0.2이며 이 변경은 아직 스토어에 배포하지 않았다.
 
 검증 결과:
 
@@ -104,7 +104,23 @@ v1.1을 보류한 사유는 **D-30 기준 오답 15/55**였다. 정확도를 더
 
 - 위 A32 수치는 **동일 기기 회귀 안전성**을 확인하는 값이며 과거 API 36 에뮬레이터의 v1.1 역사 기준선 수치와 바꿔 쓰지 않는다.
 - bundled 전환의 목적은 OCR 정확도 상승이 아니라 모델 가용성 경로를 앱 패키지에 포함해 첫 실행 네트워크 의존을 제거하는 것이다.
-- 누락 형식 `YYYY년 MM월 DD일`, `YYYYMMDD`, `YYMMDD`의 실제 라벨 coverage는 별도 Phase 3 데이터셋으로 계속 수집한다.
+- 누락 형식 실사진 수집·측정은 아래 8절의 별도 Phase 3/4 데이터셋으로 닫았다. 고정 55장 회귀셋에는 섞지 않았다.
+
+### 8. Phase 3/4 — 누락 형식 실사진 수집·A32 측정 (2026-09-09)
+
+실생활에서 직접 촬영하고 카카오톡을 거치지 않은 device-source JPEG 23장을 검수했다. 파일에는 2026-09-09 시각 메타데이터가 남아 있고 SHA-256 중복은 없었다. 다만 `DateTimeOriginal`은 비어 있고 `FullSizeRender.JPEG` 1장이 있어 카메라 원본 포맷 자체로 일반화하지 않는다. 카카오톡 전송본은 device-source 파일과 1:1 대응만 확인한 뒤 benchmark 정본에서 제외했다.
+
+목표 사용자와 같은 식품 라벨만 넣는 **primary coverage**에서는 `YYYY년 MM월 DD일` 1장을 확인했다. A32(SM-A325N, API 33)에서 실제 촬영일 `2026-09-09` 기준으로 실행해 **1장 중 1장 exact·expected-candidate 성공, OCR variant 실패 0**이었다. 표본이 1장이므로 정확도 퍼센트로 일반화하지 않는다. 추가 생활권 탐색까지 했지만 식품 포장에서 연속 `YYYYMMDD`·`YYMMDD`는 확보하지 못해 해당 두 형식의 목표 사용자 성능은 미측정으로 남긴다.
+
+형식 자체의 OCR·파서 동작을 보기 위한 **auxiliary format-only probe**는 식품 대표성과 분리했다. 비식품 실물에서 명확한 하루 단위 정답을 확인할 수 있는 `YYYYMMDD` 5장과 `MMDDYYYY` 1장을 A32에서 측정했다.
+
+- 사용자 라벨 확인 전 1차 잠정 측정에서 `FullSizeRender.JPEG`와 `IMG_2492.JPEG`의 사람이 읽은 정답을 각각 `2026-06-16`, `2028-05-10`으로 잘못 기록했다. 사용자가 실제 인쇄값 `2026-03-16`, `2028-06-10`을 확인해 ground truth를 수정했고, 그 1차 결과는 판정에서 제외했다.
+- 정답 수정 후 재측정: 전체 6장 exact `4/6`, any-candidate `4/6`, expected-candidate `4/6`, OCR variant 실패 0.
+- `YYYYMMDD`: exact `4/5` (80%, n=5). 실패 1건은 `no_date_candidate`였다.
+- `MMDDYYYY`: `0/1`, `no_date_candidate`. 현재 compact parser의 지원 형식이 아니다.
+- `MM/YYYY`, `YYYYMM` 월 단위 표본과 인쇄가 가려진 추가 `MMDDYYYY` 1장은 임의의 일(day)을 만들어 정답으로 쓰지 않기 위해 exact-date benchmark에서 제외하고 private intake 자료로만 보존했다.
+
+사람이 확인한 ground truth로 다시 측정한 `YYYYMMDD`는 5장 중 4장이 정확 성공했고 남은 1장은 날짜 후보 자체가 없었다. 따라서 compact `YYYYMMDD`의 반복 parser 실패로 볼 근거가 없다. `MMDDYYYY`는 원래 primary target이 아닌 보조 1장뿐이다. 명확한 **반복 parser 원인**이 성립하지 않아 D-007의 1회 parser 개선 사이클은 사용하지 않았다. 이 auxiliary 수치는 한국 식품 라벨 정확도로 합치거나 일반화하지 않는다.
 ## 재현 명령
 
 요구 환경은 JDK 17, Android SDK 35, 정확히 한 대의 Android 기기 또는 에뮬레이터다. 사진과 정답 원본이 필요한 benchmark/instrumentation은 공개 clone만으로 재현할 수 없으며 승인된 로컬 `qa-private/` 자료가 있어야 한다.
@@ -151,6 +167,8 @@ D-30/D-180 이중 릴리스 회귀:
 | `qa-private/results/korean-labels-55-v2-d180.csv` | `d896caa5702aaa559f1ba377131b1ebeca2e29fb86f85419931dfdc6253ff2f9` |
 | `qa-private/results/korean-labels-55-v3-guard-regression-d30.csv` | `e7d2639b80fecc171a70691107b02c719b620fee1bc3ff52383b7254cb3fb9ff` |
 | `qa-private/results/korean-labels-55-v3-guard-regression-d180.csv` | `d896caa5702aaa559f1ba377131b1ebeca2e29fb86f85419931dfdc6253ff2f9` |
+| `qa-private/results/format-gap-primary-a32-20260909-native.csv` | `ae1aae345410c23ef1d932f33a1aaf10fe2c25a7c4d88ef816ebd938a7a8068d` |
+| `qa-private/results/format-probe-aux-a32-20260909-native-corrected.csv` | `d0608fd447dc0dd0638e4751c551d88d0f5d61647e6110a3e3053d192eb7e71d` |
 
 종료 점검에서 위 로컬 파일 digest가 문서 값과 일치함을 다시 확인한다.
 
@@ -165,7 +183,7 @@ D-30/D-180 이중 릴리스 회귀:
 ## 알려진 한계
 
 - D-30과 D-180은 과거 사진에 부여한 고정 평가 시나리오이며 실제 촬영일이 아니다.
-- 55장에 한글 날짜와 연속 숫자 날짜 실사진이 없어 해당 형식 성능을 알 수 없다.
+- 고정 55장 자체에는 한글 날짜와 연속 숫자 날짜 실사진이 없다. 2026-09-09 별도 실제 촬영일 coverage에서 한글 식품 라벨 1장은 측정했지만 표본이 작고, 연속 숫자 식품 라벨은 생활권 추가 탐색에서도 확보하지 못했다. 비식품 auxiliary probe는 형식 동작 참고용일 뿐 식품 성능으로 일반화하지 않는다.
 - 제조일자와 소비기한이 함께 인식될 때 평가일과 가까운 제조일자를 선택할 수 있다.
 - `clear_dot_matrix`, `embossed_low_contrast`, `dark`, 연도 없는 `MM.DD`의 작은 그룹에서 실패가 집중됐지만 그룹 크기가 작아 전체 사용자 환경으로 일반화할 수 없다.
 - 사용자 베타를 실행하지 않았으므로 사용자 수, 재사용 의향, 실제 사용 성공률을 주장하지 않는다.

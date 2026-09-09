@@ -545,12 +545,14 @@ class NotificationWorker(context: Context, params: WorkerParameters)
 ✅ 독립 55장 QA, 샘플별 회귀 자동화와 기준선 보호 구축
 ✅ 잔여 오답과 표본 공백을 근거로 v1.1 기준 미달 배포 차단
 ✅ 보류 사유를 제품 구조로 해결해 v1.0.2 원스토어 배포 (공개 배포 이력 2건)
+✅ bundled Korean ML Kit 전환을 동일 A32 회귀·오프라인 첫 OCR로 검증하고 `main`에 반영
+✅ 실제 촬영일 format-gap Phase 3/4를 A32에서 측정하고, 식품 primary와 비식품 format-only probe를 분리해 대표성 한계를 명시
 
 ### 최종 평가
 
 > v1.0 출시 후 독립 QA와 릴리스 게이트를 적용해 v1.1 후보를 조건부 수치로 평가했고, 대표성 공백과 잔여 오답을 근거로 배포하지 않았다(2026-07-22 판단).
 > 이후 OCR 정확도를 더 올리는 대신 보호 대상을 다시 정의해, 인식한 날짜를 사용자가 확인해야 저장되도록 하는 `OcrDateConfirmationDialog`를 넣어 잘못 읽힌 날짜의 저장 경로 자체를 차단했다. 이 제품 변경으로 보류 사유를 해소하고 2026-08-12에 v1.0.2를 원스토어에 배포했다. 공개 배포 이력은 v1.0 → v1.0.2 2건이다.
-> 2026-09-09부터 QA hardening을 재개했다. 현재 공개 버전은 v1.0.2이고 v1.1은 Release No-Go를 유지한다. bundled OCR 후보 검증과 누락 형식 실사진 coverage를 진행한 뒤, 별도 UI/UX 리디자인과 전체 검증을 거쳐 새 원스토어 공개 버전으로 제품 완료를 닫는다. 상세는 [QA_RELEASE_RECORD.md](QA_RELEASE_RECORD.md).
+> 2026-09-09 QA hardening에서 bundled OCR 전환은 `main` 반영까지 완료했고, 누락 형식 실사진 Phase 3 수집과 Phase 4 A32 측정도 닫았다. 한글 식품 라벨 1장은 성공했지만 연속 숫자 식품 라벨은 생활권 추가 탐색에서도 확보하지 못해 미측정 한계로 남겼고, 비식품 format-only probe는 별도 결과로 분리했다. 현재 공개 버전은 v1.0.2이고 v1.1은 Release No-Go를 유지한다. 다음 단계는 별도 UI/UX 리디자인과 전체 검증이며, 새 원스토어 공개 버전으로 제품 완료를 닫는다. 상세는 [QA_RELEASE_RECORD.md](QA_RELEASE_RECORD.md).
 
 ---
 

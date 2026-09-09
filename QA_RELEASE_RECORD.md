@@ -5,12 +5,12 @@
 
 ## 최종 상태
 
-**v1.0.2 Released (원스토어, 2026-08-12) — 공개 배포 이력 2건**
+**v1.0.2 Released (원스토어, 2026-08-12) / QA hardening active — 공개 배포 이력 2건**
 
 - v1.0을 원스토어에 출시했다.
 - 출시 후 v1.1 후보에 독립 한국 식품 라벨 55장 QA와 릴리스 게이트를 적용했고, 잔여 오답과 표본 공백을 근거로 **배포를 보류(No-Go)**했다. 이는 프로젝트 전체의 No-Go나 “정확도가 낮아 포기”한 결과가 아니라, 측정과 회귀 기준으로 검증되지 않은 업데이트를 차단한 릴리스 판단이다.
 - **보류 사유를 정확도가 아닌 제품 구조로 해결하고 2026-08-12에 v1.0.2를 원스토어에 배포했다.** 공개 배포 이력은 v1.0 → v1.0.2 2건이다. 상세는 아래 「6. 보류 이후 — v1.0.2」.
-- 현재 추가 OCR 정확도 개선, 실사진 수집, 사용자 모집·베타는 하지 않는다. 보존에 필요한 최소 유지보수만 한다.
+- 2026-09-09부터 QA hardening을 재개했다. 현재 공개 버전은 여전히 v1.0.2이고 v1.1은 Release No-Go 상태를 유지한다. bundled Korean ML Kit 후보 검증과 누락 형식 실사진 coverage 수집을 진행하며, 이후 별도 UI/UX 리디자인과 전체 검증을 거쳐 새 원스토어 공개 버전을 제품 완료 기준으로 삼는다.
 
 > **2026-08-15 개정 이력**: 이 문서는 2026-07-22 종료 시점 판정(`v1.0 Released / v1.1 QA No-Go / Archived`)을 담고 있었다.
 > 2026-08-12 v1.0.2 배포로 그 판정이 더 이상 현재 상태가 아니므로 최종 상태와 검증 사실을 갱신했다.
@@ -87,6 +87,24 @@ v1.1을 보류한 사유는 **D-30 기준 오답 15/55**였다. 정확도를 더
   ⚠️ 에뮬레이터 검증은 API 36, 이번 실기기 검증은 API 33이다. 같은 조건으로 취급하지 않는다.
 - v1.0.2는 **OCR 인식 정확도를 개선한 버전이 아니다.** 55장 기준선 수치는 v1.1 QA 시점 값 그대로이며, 달라진 것은 잘못된 값이 저장되는 경로다.
 
+### 7. QA hardening 재개 — bundled Korean ML Kit 후보 (2026-09-09, 미배포)
+
+2026-08-23 실기기 검증에서 확인된 unbundled 한국어 OCR의 첫 실행 모듈 의존성을 없애기 위해, 개발 브랜치 `feat/bundled-mlkit`에서 한국어 OCR 의존성을 `com.google.mlkit:text-recognition-korean:16.0.1`로 전환했다. 현재 원스토어 공개본은 여전히 v1.0.2이며 이 변경은 아직 merge·배포하지 않았다.
+
+검증 결과:
+
+- 로컬 품질 게이트 `testDebugUnitTest`, `lintDebug`, `assembleDebug`, `assembleRelease`, `assembleDebugAndroidTest` 모두 통과.
+- 동일 Galaxy A32(SM-A325N, API 33)에서 2026-09-08 main 기준선과 비교한 55장 회귀가 D-30 `40/55 (72.73%)`, D-180 `38/55 (69.09%)`, 정답 후보 재현은 두 시나리오 모두 `44/55 (80%)`로 동일했다. 전체 delta와 샘플별 exact/정답 후보 퇴행은 0이며 release regression gate가 통과했다.
+- 번들 Release APK는 `52,143,777` bytes. 동일 versionCode/R8 조건의 unbundled 비교 아티팩트 `9,142,795` bytes보다 `43,000,982` bytes 증가했다. 이 값은 현재 로컬 APK 비교이며 스토어 다운로드 크기로 일반화하지 않는다.
+- 새 Release APK에서 `INTERNET` 권한 부재와 `qa-private`/실측 데이터 미포함을 다시 확인했다.
+- A32에서 debug 패키지를 클린 설치하고 비행기 모드 ON + Wi-Fi OFF + 외부 네트워크 도달 불가 상태에서 첫 OCR 시도가 성공했다. 사용자 확인 기준 시험 라벨의 실제 날짜는 `2027.02.28`이었다. 화면에 표시된 인식 날짜 값 자체는 별도 로그로 수집하지 않았으므로 이 1회 수동 확인을 정확도 수치로 사용하지 않는다.
+- 첫 OCR 시도의 logcat에는 `OcrHelper` 실패, `Waiting for the text optional module to be downloaded` 오류가 없었다. bundled artifact 내부에는 Korean 모델 자산이 포함돼 있다. A32에는 과거 unbundled 검증에서 설치된 Google Play services OCR Dynamite 모듈이 남아 있어 runtime이 해당 모듈을 선택한 로그도 보였으므로, "Dynamite 로그 0"을 bundled 수락 조건으로 사용하지 않는다.
+
+해석 경계:
+
+- 위 A32 수치는 **동일 기기 회귀 안전성**을 확인하는 값이며 과거 API 36 에뮬레이터의 v1.1 역사 기준선 수치와 바꿔 쓰지 않는다.
+- bundled 전환의 목적은 OCR 정확도 상승이 아니라 모델 가용성 경로를 앱 패키지에 포함해 첫 실행 네트워크 의존을 제거하는 것이다.
+- 누락 형식 `YYYY년 MM월 DD일`, `YYYYMMDD`, `YYMMDD`의 실제 라벨 coverage는 별도 Phase 3 데이터셋으로 계속 수집한다.
 ## 재현 명령
 
 요구 환경은 JDK 17, Android SDK 35, 정확히 한 대의 Android 기기 또는 에뮬레이터다. 사진과 정답 원본이 필요한 benchmark/instrumentation은 공개 clone만으로 재현할 수 없으며 승인된 로컬 `qa-private/` 자료가 있어야 한다.

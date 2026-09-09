@@ -100,8 +100,5 @@ Desktop.ini
 *.swp
 .~lock.*
 
-# Local AI tool settings
-.claude/
-
 # Local OCR QA data (real photos, labels, and measured outputs)
 /qa-private/

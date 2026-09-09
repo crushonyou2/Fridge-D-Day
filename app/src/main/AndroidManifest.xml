@@ -21,10 +21,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.FridgeDDay">
-        <!-- Play services에서 Korean OCR 모델을 설치 시점에 미리 내려받도록 요청한다. -->
-        <meta-data
-            android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="ocr_korean" />
+        <!-- Bundled Korean model ships in the APK: no optional Korean model pre-download request is needed. -->
 
         <activity
             android:name=".MainActivity"

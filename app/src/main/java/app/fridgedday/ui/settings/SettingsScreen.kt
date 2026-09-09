@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import app.fridgedday.BuildConfig
 import app.fridgedday.data.db.AppDatabase
 import app.fridgedday.data.pref.SettingsDataStore
 import app.fridgedday.data.pref.ThemeMode
@@ -113,6 +114,7 @@ fun SettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            SettingsSectionHeader(title = "알림")
             // Daily Notification Toggle
             SettingItem(
                 title = "매일 알림 받기",
@@ -164,6 +166,7 @@ fun SettingsScreen(
 
             Divider()
 
+            SettingsSectionHeader(title = "표시")
             // Theme Mode
             var expandedTheme by remember { mutableStateOf(false) }
             SettingItem(
@@ -222,6 +225,7 @@ fun SettingsScreen(
 
             Divider()
 
+            SettingsSectionHeader(title = "데이터")
             // Backup & Restore
             Column(
                 modifier = Modifier
@@ -229,10 +233,6 @@ fun SettingsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "데이터 관리",
-                    style = MaterialTheme.typography.titleMedium
-                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -281,6 +281,7 @@ fun SettingsScreen(
 
             Divider()
 
+            SettingsSectionHeader(title = "정보")
             // App Info
             Column(
                 modifier = Modifier
@@ -288,12 +289,7 @@ fun SettingsScreen(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = "앱 정보",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "오늘도 신선 v1.0.0",
+                    text = "오늘도 신선 v${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -318,6 +314,18 @@ fun SettingsScreen(
             onDismiss = { showTimePicker = false }
         )
     }
+}
+
+@Composable
+private fun SettingsSectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    )
 }
 
 @Composable

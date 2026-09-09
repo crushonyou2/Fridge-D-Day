@@ -14,9 +14,19 @@
 
 > ## 🔄 2026-09-09 현재 상태 — QA hardening 재개
 >
-> 2026-07-22의 v1.1 No-Go 기록과 수치는 역사 기준선으로 보존한다. 이후 2026-09-09 QA hardening을 재개했고, Galaxy A32 동일 기기 main 기준선에 대해 bundled Korean ML Kit 후보가 D-30 `40/55`, D-180 `38/55`, expected-candidate `44/55`로 **aggregate·샘플별 변화 0**을 확인했다. 이 A32 결과는 과거 API 36 에뮬레이터 기준선과 서로 다른 환경이므로 수치를 합치거나 대체하지 않는다.
+> 2026-07-22의 v1.1 No-Go 기록과 수치는 역사 기준선으로 보존한다. 이후 2026-09-09 QA hardening을 재개했고, Galaxy A32 동일 기기 main 기준선에 대해 bundled Korean ML Kit 전환본이 D-30 `40/55`, D-180 `38/55`, expected-candidate `44/55`로 **aggregate·샘플별 변화 0**을 확인했다. 이 A32 결과는 과거 API 36 에뮬레이터 기준선과 서로 다른 환경이므로 수치를 합치거나 대체하지 않는다.
 >
-> 누락된 `YYYY년 MM월 DD일`, `YYYYMMDD`, `YYMMDD` 실사진은 별도 Phase 3 coverage set으로 수집 중이다. 55장 고정 회귀셋에 섞지 않는다. current release/Go-No-Go 상태의 정본은 [QA_RELEASE_RECORD.md](../../QA_RELEASE_RECORD.md)다.
+> 별도 Phase 3/4 실사진 coverage는 2026-09-09 측정을 완료했다. 식품 primary set은 `YYYY년 MM월 DD일` 1장(A32 exact 1/1)을 확보했고, 생활권 추가 탐색에서도 연속 `YYYYMMDD`·`YYMMDD` 식품 라벨은 확보하지 못했다. 별도 비식품 auxiliary probe의 `YYYYMMDD` 5장은 사용자 ground-truth 확인 후 재측정에서 exact 4/5였으며 식품 정확도로 일반화하지 않는다. 55장 고정 회귀셋에는 어느 쪽도 섞지 않는다. current release/Go-No-Go 상태의 정본은 [QA_RELEASE_RECORD.md](../../QA_RELEASE_RECORD.md)다.
+
+### 2026-09-09 Phase 3/4 실제 촬영일 coverage
+
+- 카카오톡을 거치지 않고 기기에서 직접 가져온 JPEG 23장을 같은 날 촬영 자료로 검수했다. 시각 메타데이터는 남아 있지만 `DateTimeOriginal`은 비어 있고 `FullSizeRender.JPEG` 1장이 있어 카메라 원본 포맷이라고 단정하지 않는다. 카카오톡 전송본은 매칭만 하고 benchmark source로 사용하지 않았다.
+- 식품 primary coverage: `YYYY년 MM월 DD일` 1장, 평가일은 실제 촬영일 `2026-09-09`. A32에서 exact `1/1`, expected-candidate `1/1`, failed variant `0`. 5장 미만이므로 퍼센트 성능을 주장하지 않는다.
+- 식품 compact coverage: 추가 탐색까지 했지만 contiguous `YYYYMMDD`·`YYMMDD`를 확보하지 못했다. 이 두 형식의 목표 사용자 성능은 미측정이다.
+- auxiliary format-only probe: 비식품 실물 `YYYYMMDD` 5장 + `MMDDYYYY` 1장을 별도 데이터셋으로 측정했다. 사람이 라벨을 재확인하기 전 잠정 ground truth 2건이 잘못돼 1차 결과는 판정에서 제외했고, 정답 수정 후 A32에서 다시 실행했다. 최종은 전체 exact `4/6`, any-candidate `4/6`, expected-candidate `4/6`; `YYYYMMDD`는 exact `4/5` (80%, n=5), `MMDDYYYY`는 `0/1`이었다.
+- corrected `YYYYMMDD`의 유일한 실패는 `no_date_candidate` 1건이다. 5장 중 4장이 정확 성공해 형식 자체의 반복 parser 실패로 보지 않았다. `MMDDYYYY`는 현재 parser 지원 밖이지만 원래 primary target이 아닌 보조 1장이라 parser 확장 근거로 사용하지 않았다.
+- `MM/YYYY`, `YYYYMM`처럼 day가 없는 표본은 `LocalDate` 정답을 인위적으로 만들지 않기 위해 exact-date benchmark에서 제외했다. 인쇄가 가려진 추가 `MMDDYYYY`도 제외했다.
+- 따라서 이번 Phase 4에서는 parser 수정 없이 관측 결과와 대표성 한계를 문서화하고 종료했다.
 ## 측정 시점 상태 (2026-07-22)
 
 **당시 판정: v1.0 Released / v1.1 QA No-Go.** 아래 수치와 자동화는 출시 후 v1.1 후보를 평가해 기준 미달 배포를 차단한 종료 증거다. 추가 표본 수집, OCR 개선, 사용자 베타, v1.1 출시 또는 스토어 업데이트는 활성 계획이 아니다.
@@ -370,9 +380,9 @@ HEIC 원본을 보존하면서 현재 55장의 파생 JPEG를 재현한다. `bas
 
 - 공개 61장은 50장 판정선을 충족하지만 영어권·일 우선 표기가 많아 한국 유통기한 라벨을 대표하지 않는다.
 - 한국 55장은 독립 릴리스 기준선이지만 정확 일치가 72.73%여서 자동 입력 오답 15장을 사용자에게 그대로 노출할 위험이 남는다.
-- 72.73%는 D-30 조건부 결과다. D-180은 70.91%였고 두 조건 모두 실제 촬영일을 대신하지 못한다. 실제 촬영일 기반 표본이 없어 실사용 정확도로 일반화하지 않는다.
+- 72.73%는 고정 55장의 D-30 조건부 결과다. D-180은 70.91%였고 두 조건 모두 실제 촬영일을 대신하지 못한다. 2026-09-09 별도 소규모 coverage는 실제 촬영일을 사용했지만 표본 규모·형식·제품군이 제한되므로 55장 수치를 실사용 정확도로 일반화하지 않는다.
 - 동일 confidence 후보 중 평가일과 가장 가까운 날짜를 선택하므로 제조일자와 소비기한이 함께 인식되면 제조일자를 고를 수 있다. 이 위험은 알려진 한계로 남긴다.
-- 한글 `YYYY년 MM월 DD일`, 연속 숫자 `YYYYMMDD`·`YYMMDD` 실사진이 없다. 현재 수치로 이 형식의 품질을 추정하지 않는다.
+- 고정 55장에는 한글 `YYYY년 MM월 DD일`, 연속 숫자 `YYYYMMDD`·`YYMMDD`가 없다. 별도 2026-09-09 coverage에서 한글 식품 1장을 측정했고, 연속 숫자 식품 라벨은 추가 탐색에서도 미관측이었다. 비식품 `YYYYMMDD` 보조 5장 결과는 식품 품질 추정에 사용하지 않는다.
 - 잔여 실패는 clear_dot_matrix 8/16, embossed_low_contrast 3/4, dark 2/2, 연도 없는 `MM.DD` 2/2에 집중된다. 작은 그룹의 관측값은 원인이나 전체 성능으로 일반화하지 않는다.
 - `korean_012`의 설명 오버레이와 `korean_017`의 가격표형 다중 제품 구도는 실제 카메라 촬영 대표성의 한계다.
 - 사진·정답·원시 결과는 계속 `qa-private/`에만 저장하고 공개 문서에는 집계만 남긴다.

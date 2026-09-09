@@ -11,6 +11,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +27,7 @@ import app.fridgedday.data.db.entity.StorageLocation
 import app.fridgedday.data.repo.ItemRepository
 import app.fridgedday.ui.components.CameraPreview
 import app.fridgedday.ui.components.DatePickerField
+import app.fridgedday.util.DateUtils
 import app.fridgedday.util.PermissionUtils
 import app.fridgedday.util.ocr.TextRecognitionHelper
 import kotlinx.coroutines.launch
@@ -256,44 +259,38 @@ fun AddEditScreen(
             }
 
             // Expiry Date with OCR (Camera & Gallery)
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "유통기한 *",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                DatePickerField(
+                    label = "",
+                    selectedDate = uiState.expiryDate,
+                    onDateSelected = { viewModel.confirmManualExpiryDate(it) },
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // 날짜 선택 필드 (가중치 1.2)
-                    DatePickerField(
-                        label = "",
-                        selectedDate = uiState.expiryDate,
-                        onDateSelected = { viewModel.confirmManualExpiryDate(it) },
-                        modifier = Modifier.weight(1.2f)
-                    )
-
-                    // 카메라 버튼 (가중치 0.5)
                     OutlinedButton(
                         onClick = {
                             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                         },
                         enabled = !isProcessingOCR,
                         modifier = Modifier
-                            .height(56.dp)
-                            .weight(0.5f),
-                        contentPadding = PaddingValues(0.dp) // 아이콘 중심 정렬
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
                     ) {
                         if (isProcessingOCR) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp))
                         } else {
-                            Icon(Icons.Default.CameraAlt, contentDescription = "촬영")
+                            Icon(Icons.Default.CameraAlt, contentDescription = null)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("촬영")
                         }
                     }
-
-                    // 갤러리 버튼 (가중치 0.5)
                     OutlinedButton(
                         onClick = {
                             galleryLauncher.launch(
@@ -302,36 +299,68 @@ fun AddEditScreen(
                         },
                         enabled = !isProcessingOCR,
                         modifier = Modifier
-                            .height(56.dp)
-                            .weight(0.5f),
-                        contentPadding = PaddingValues(0.dp)
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
                     ) {
-                        Icon(Icons.Default.Image, contentDescription = "갤러리")
+                        Icon(Icons.Default.Image, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("갤러리")
                     }
                 }
                 
                 // 진행 상태 텍스트
                 if (isProcessingOCR) {
-                    Text(
-                        text = "이미지 분석 및 날짜 인식 중...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = "이미지 분석 및 날짜 인식 중...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 } else if (uiState.expiryDate == null) {
-                    Text(
-                        text = "날짜를 선택해야 저장할 수 있습니다.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "날짜를 선택해야 저장할 수 있습니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 } else if (uiState.isExpiryDateConfirmed) {
-                    Text(
-                        text = "확인된 날짜: ${uiState.expiryDate}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    val confirmedDate = uiState.expiryDate
+                    if (confirmedDate != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "확인된 날짜: ${DateUtils.formatKorean(confirmedDate)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
 
@@ -456,7 +485,7 @@ internal fun OcrDateConfirmationDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = recognizedDate.toString(),
+                    text = DateUtils.formatKorean(recognizedDate),
                     style = MaterialTheme.typography.headlineSmall
                 )
                 Text("라벨의 실제 유통기한과 같은지 확인해주세요.")

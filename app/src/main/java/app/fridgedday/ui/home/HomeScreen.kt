@@ -8,10 +8,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
@@ -24,13 +28,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
 import app.fridgedday.data.db.AppDatabase
+import app.fridgedday.data.db.entity.StorageLocation
 import app.fridgedday.data.pref.SettingsDataStore
 import app.fridgedday.data.repo.ItemRepository
 import app.fridgedday.ui.components.ItemCard
@@ -95,15 +103,15 @@ fun HomeScreen(
     if (showWelcomeDialog) {
         AlertDialog(
             onDismissRequest = { },
-            title = { Text("오늘도 신선에 오신 것을 환영합니다! 🌱") },
+            title = { Text("오늘도 신선에 오신 것을 환영합니다!") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("식품 유통기한을 효율적으로 관리하고 음식물 낭비를 줄여보세요!")
                     Text("주요 기능:", fontWeight = FontWeight.Bold)
-                    Text("✓ 식품 등록 및 유통기한 알림")
-                    Text("✓ 카메라로 유통기한 자동 인식")
-                    Text("✓ 소비 완료 및 통계 확인")
-                    Text("✓ 보관 위치별 관리")
+                    Text("• 식품 등록 및 유통기한 알림")
+                    Text("• 카메라로 유통기한 자동 인식")
+                    Text("• 소비 완료 및 통계 확인")
+                    Text("• 보관 위치별 관리")
                     Text("\n+ 버튼을 눌러 첫 식품을 등록해보세요!")
                 }
             },
@@ -126,26 +134,17 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "🌱",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text("오늘도 신선")
-                    }
+                    Text("오늘도 신선")
                 },
                 actions = {
                     // 정렬 버튼
                     IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.Default.Sort, contentDescription = "정렬")
+                        Icon(Icons.Default.Sort, contentDescription = "정렬: ${sortLabel(uiState.sortType)}")
                     }
 
                     // 위치 필터 버튼
                     IconButton(onClick = { showLocationMenu = true }) {
-                        Icon(Icons.Default.FilterList, contentDescription = "위치 필터")
+                        Icon(Icons.Default.FilterList, contentDescription = "위치 필터: ${locationLabel(uiState.locationFilter)}")
                     }
 
                     IconButton(onClick = { showSearchBar = !showSearchBar }) {
@@ -159,6 +158,14 @@ fun HomeScreen(
                     ) {
                         DropdownMenuItem(
                             text = { Text("유통기한 임박순") },
+                            modifier = Modifier.semantics {
+                                selected = uiState.sortType == SortType.EXPIRY_DATE
+                            },
+                            trailingIcon = {
+                                if (uiState.sortType == SortType.EXPIRY_DATE) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            },
                             onClick = {
                                 viewModel.setSortType(SortType.EXPIRY_DATE)
                                 showSortMenu = false
@@ -166,6 +173,14 @@ fun HomeScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("이름순") },
+                            modifier = Modifier.semantics {
+                                selected = uiState.sortType == SortType.NAME
+                            },
+                            trailingIcon = {
+                                if (uiState.sortType == SortType.NAME) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            },
                             onClick = {
                                 viewModel.setSortType(SortType.NAME)
                                 showSortMenu = false
@@ -173,6 +188,14 @@ fun HomeScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("등록일순") },
+                            modifier = Modifier.semantics {
+                                selected = uiState.sortType == SortType.CREATED_DATE
+                            },
+                            trailingIcon = {
+                                if (uiState.sortType == SortType.CREATED_DATE) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            },
                             onClick = {
                                 viewModel.setSortType(SortType.CREATED_DATE)
                                 showSortMenu = false
@@ -187,6 +210,14 @@ fun HomeScreen(
                     ) {
                         DropdownMenuItem(
                             text = { Text("전체") },
+                            modifier = Modifier.semantics {
+                                selected = uiState.locationFilter == null
+                            },
+                            trailingIcon = {
+                                if (uiState.locationFilter == null) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            },
                             onClick = {
                                 viewModel.setLocationFilter(null)
                                 showLocationMenu = false
@@ -194,22 +225,46 @@ fun HomeScreen(
                         )
                         DropdownMenuItem(
                             text = { Text("냉장") },
+                            modifier = Modifier.semantics {
+                                selected = uiState.locationFilter == StorageLocation.FRIDGE
+                            },
+                            trailingIcon = {
+                                if (uiState.locationFilter == StorageLocation.FRIDGE) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            },
                             onClick = {
-                                viewModel.setLocationFilter(app.fridgedday.data.db.entity.StorageLocation.FRIDGE)
+                                viewModel.setLocationFilter(StorageLocation.FRIDGE)
                                 showLocationMenu = false
                             }
                         )
                         DropdownMenuItem(
                             text = { Text("냉동") },
+                            modifier = Modifier.semantics {
+                                selected = uiState.locationFilter == StorageLocation.FREEZER
+                            },
+                            trailingIcon = {
+                                if (uiState.locationFilter == StorageLocation.FREEZER) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            },
                             onClick = {
-                                viewModel.setLocationFilter(app.fridgedday.data.db.entity.StorageLocation.FREEZER)
+                                viewModel.setLocationFilter(StorageLocation.FREEZER)
                                 showLocationMenu = false
                             }
                         )
                         DropdownMenuItem(
                             text = { Text("실온") },
+                            modifier = Modifier.semantics {
+                                selected = uiState.locationFilter == StorageLocation.PANTRY
+                            },
+                            trailingIcon = {
+                                if (uiState.locationFilter == StorageLocation.PANTRY) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            },
                             onClick = {
-                                viewModel.setLocationFilter(app.fridgedday.data.db.entity.StorageLocation.PANTRY)
+                                viewModel.setLocationFilter(StorageLocation.PANTRY)
                                 showLocationMenu = false
                             }
                         )
@@ -338,6 +393,16 @@ fun HomeScreen(
                     value = uiState.searchKeyword,
                     onValueChange = { viewModel.setSearchKeyword(it) },
                     placeholder = { Text("이름으로 검색") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null)
+                    },
+                    trailingIcon = {
+                        if (uiState.searchKeyword.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.setSearchKeyword("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "검색어 지우기")
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -366,9 +431,62 @@ fun HomeScreen(
                 )
             }
 
+            // Active state summary: sort / location / search / result count
+            val hasActiveSearch = uiState.searchKeyword.isNotBlank()
+            val hasNonDefaultState = hasActiveSearch ||
+                uiState.locationFilter != null ||
+                uiState.sortType != SortType.EXPIRY_DATE ||
+                uiState.filterType != FilterType.ALL
+            val resetFilters = {
+                viewModel.setSearchKeyword("")
+                viewModel.setLocationFilter(null)
+                viewModel.setSortType(SortType.EXPIRY_DATE)
+                viewModel.setFilter(FilterType.ALL)
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = buildString {
+                        append(sortLabel(uiState.sortType))
+                        append(" · 위치 ")
+                        append(locationLabel(uiState.locationFilter))
+                        if (hasActiveSearch) {
+                            append(" · \"")
+                            append(uiState.searchKeyword)
+                            append("\" 검색 중")
+                        }
+                        append(" · ")
+                        append(uiState.items.size)
+                        append("개")
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (hasNonDefaultState) {
+                    TextButton(
+                        onClick = resetFilters,
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
+                        Text("초기화")
+                    }
+                }
+            }
+
             // Item List
             if (uiState.items.isEmpty()) {
-                EmptyState()
+                if (uiState.totalItemCount == 0) {
+                    EmptyState(onAddClick = { navController.navigate(Destinations.ADD) })
+                } else {
+                    NoResultsState(onResetClick = resetFilters)
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -399,7 +517,40 @@ fun HomeScreen(
 }
 
 @Composable
-fun EmptyState() {
+fun NoResultsState(onResetClick: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text(
+                text = "조건에 맞는 식품이 없어요",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "검색어 또는 필터를 바꿔보세요.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            OutlinedButton(
+                onClick = onResetClick,
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) {
+                Text("필터 초기화")
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyState(onAddClick: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -409,23 +560,52 @@ fun EmptyState() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            Text(
-                text = "🥗",
-                style = MaterialTheme.typography.displayLarge
-            )
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(88.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Inventory,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
             Text(
                 text = "등록된 식품이 없어요",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "오른쪽 하단의 + 버튼을 눌러\n첫 식품을 등록해보세요!",
+                text = "아래 버튼으로 첫 식품을 등록하고\n유통기한을 관리해보세요!",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+            Button(
+                onClick = onAddClick,
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) {
+                Text("첫 식품 등록")
+            }
         }
     }
+}
+
+private fun sortLabel(sortType: SortType): String = when (sortType) {
+    SortType.EXPIRY_DATE -> "유통기한 임박순"
+    SortType.NAME -> "이름순"
+    SortType.CREATED_DATE -> "등록일순"
+}
+
+private fun locationLabel(location: StorageLocation?): String = when (location) {
+    null -> "전체"
+    StorageLocation.FRIDGE -> "냉장"
+    StorageLocation.FREEZER -> "냉동"
+    StorageLocation.PANTRY -> "실온"
 }
 
 private fun shareItemList(context: android.content.Context, items: List<app.fridgedday.data.db.entity.ItemEntity>) {
@@ -434,7 +614,7 @@ private fun shareItemList(context: android.content.Context, items: List<app.frid
     }
 
     val shareText = buildString {
-        appendLine("📋 오늘도 신선 - 식품 관리 목록")
+        appendLine("오늘도 신선 - 식품 관리 목록")
         appendLine()
 
         items.forEach { item ->

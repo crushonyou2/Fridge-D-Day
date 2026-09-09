@@ -20,13 +20,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.fridgedday.data.db.entity.ItemEntity
 import app.fridgedday.data.db.entity.StorageLocation
-import app.fridgedday.util.DDayState
+import app.fridgedday.ui.theme.containerColor
+import app.fridgedday.ui.theme.contentColor
 import app.fridgedday.util.DateUtils
 import app.fridgedday.util.getDDayState
 
@@ -121,7 +121,7 @@ fun ItemCard(
                             StorageLocation.FREEZER -> Icons.Default.AcUnit
                             StorageLocation.PANTRY -> Icons.Default.Store
                         },
-                        contentDescription = item.location.name,
+                        contentDescription = "보관 위치: ${locationLabel(item.location)}",
                         tint = MaterialTheme.colorScheme.primary
                     )
 
@@ -164,7 +164,7 @@ fun ItemCard(
 
                     IconButton(
                         onClick = { showActions = !showActions },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
@@ -236,16 +236,8 @@ fun DDayBadge(expiryDate: java.time.LocalDate) {
     val state = getDDayState(days)
     val text = DateUtils.formatDDay(expiryDate)
 
-    val backgroundColor = when (state) {
-        DDayState.SAFE -> Color(0xFF4CAF50)      // Green
-        DDayState.WARNING -> Color(0xFFFFC107)   // Yellow
-        DDayState.EXPIRED -> Color(0xFFF44336)   // Red
-    }
-
-    val textColor = when (state) {
-        DDayState.WARNING -> Color.Black
-        else -> Color.White
-    }
+    val backgroundColor = state.containerColor()
+    val textColor = state.contentColor()
 
     Surface(
         color = backgroundColor,
@@ -260,4 +252,10 @@ fun DDayBadge(expiryDate: java.time.LocalDate) {
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         )
     }
+}
+
+private fun locationLabel(location: StorageLocation): String = when (location) {
+    StorageLocation.FRIDGE -> "냉장"
+    StorageLocation.FREEZER -> "냉동"
+    StorageLocation.PANTRY -> "실온"
 }

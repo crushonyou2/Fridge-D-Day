@@ -22,6 +22,7 @@ enum class SortType {
 
 data class HomeUiState(
     val items: List<ItemEntity> = emptyList(),
+    val totalItemCount: Int = 0,
     val filterType: FilterType = FilterType.ALL,
     val locationFilter: StorageLocation? = null,  // null이면 전체
     val sortType: SortType = SortType.EXPIRY_DATE,
@@ -54,16 +55,26 @@ class HomeViewModel(private val repository: ItemRepository) : ViewModel() {
                     // 정렬 적용
                     filtered = sortItems(filtered, sort)
 
-                    filtered
+                    filtered to items.size
                 }
                 .combine(
                     _uiState.map { it.searchKeyword }
-                ) { items, keyword ->
-                    if (keyword.isBlank()) items
-                    else items.filter { it.name.contains(keyword, ignoreCase = true) }
+                ) { (items, totalItemCount), keyword ->
+                    val visibleItems = if (keyword.isBlank()) {
+                        items
+                    } else {
+                        items.filter { it.name.contains(keyword, ignoreCase = true) }
+                    }
+                    visibleItems to totalItemCount
                 }
-                .collect { filteredItems ->
-                    _uiState.update { it.copy(items = filteredItems, isLoading = false) }
+                .collect { (filteredItems, totalItemCount) ->
+                    _uiState.update {
+                        it.copy(
+                            items = filteredItems,
+                            totalItemCount = totalItemCount,
+                            isLoading = false
+                        )
+                    }
                 }
         }
     }

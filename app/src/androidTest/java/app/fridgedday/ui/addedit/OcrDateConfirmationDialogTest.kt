@@ -32,7 +32,7 @@ class OcrDateConfirmationDialogTest {
         }
 
         composeTestRule.onNodeWithText("인식된 날짜가 맞나요?").assertIsDisplayed()
-        composeTestRule.onNodeWithText("2026-08-20").assertIsDisplayed()
+        composeTestRule.onNodeWithText("2026년 8월 20일").assertIsDisplayed()
         assertEquals("", action)
 
         composeTestRule.onNodeWithText("이 날짜 확인").performClick()

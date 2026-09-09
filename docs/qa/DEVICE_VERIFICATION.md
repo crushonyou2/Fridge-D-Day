@@ -128,7 +128,7 @@ snackbarHostState.showSnackbar("날짜를 찾지 못했습니다. ...")  // 스�
 
 이로써 발견 2의 수정 효과가 실사용 경로에서 확인됐다.
 
-### 개선 여지 (미착수)
+### 2026-08-23 시점 개선 여지 (당시 미착수)
 
 첫 시도가 실패해야 다운로드가 시작되는 구조다. Play services의 `ModuleInstallClient`로 모듈 설치를 선요청하거나 진행 상태를 노출하면 첫 실패 자체를 없앨 수 있다. **이번 범위에서는 하지 않았고, 필요성 판단도 아직이다.**
 
@@ -137,7 +137,7 @@ snackbarHostState.showSnackbar("날짜를 찾지 못했습니다. ...")  // 스�
 - **`Killing 2187:app.fridgedday (adj 101): stop app.fridgedday due to SPEG`** — 최초 실행 직후 앱 프로세스가 종료되고 재시작됐다. 삼성 SPEG가 이 앱을 게임으로 판정해(`identifyGamePackage`) 가상 디스플레이(`SpegVirtualDisplay`)에 띄웠다가 정리한 흐름으로 보인다. 사용자 체감상 이상은 없었다. **앱 결함으로 단정하지 않는다. 원인 규명은 하지 않았다.**
 - 삼성 자체 OCR(`DeepSkyLibrary` / `SmartCapture`)의 `isVisionTextSupported false` 로그는 이 앱과 무관한 기기 기본 기능이다.
 
-## 남은 한계
+## 2026-08-23 시점 남은 한계
 
 - **단위 테스트를 로컬에서 실행하지 못했다.** 6개 테스트 클래스가 모두 `ClassNotFoundException`으로 초기화에 실패한다. 수정 전 코드(`git stash`)에서도 동일하게 재현되므로 이번 변경과 무관한 기존 환경 문제다. `gradle.properties`의 `android.overridePathCheck=true`와 저장소가 비ASCII 경로에 있는 점이 유력한 원인이나 **확정하지 않았다.** 이번 수정은 컴파일 통과와 실기기 수동 검증까지만 확보된 상태다.
 - 이번 검증은 **API 33 단일 기기**다. 다른 제조사·API 레벨로 일반화하지 않는다.
@@ -145,6 +145,41 @@ snackbarHostState.showSnackbar("날짜를 찾지 못했습니다. ...")  // 스�
 - 이 수정은 **아직 배포되지 않았다.** 원스토어 공개본은 v1.0.2 그대로다.
 - 네트워크 복구 시나리오는 **Wi-Fi 1회, 촬영 2회 관측**이다. 모바일 데이터·저속 회선·다운로드 실패 상황은 확인하지 않았다.
 
+## 4차 결과 — bundled Korean ML Kit 후보, 오프라인 첫 실행 (2026-09-09)
+
+2026-09-09에는 2026-08-23의 optional-module 실패 경로를 제품 의존성 차원에서 없애기 위해 `com.google.mlkit:text-recognition-korean:16.0.1` bundled 후보를 검증했다. 공개 원스토어 v1.0.2가 아니라 `feat/bundled-mlkit` 개발 브랜치의 debug/Release 산출물 대상이다.
+
+### 자동·동일 기기 회귀
+
+- 로컬 품질 게이트 5종(`testDebugUnitTest`, `lintDebug`, `assembleDebug`, `assembleRelease`, `assembleDebugAndroidTest`) 통과.
+- Galaxy A32(SM-A325N, API 33)에서 2026-09-08 동일 기기 main 기준선과 비교:
+  - D-30 exact `40/55 → 40/55`, expected-candidate `44/55 → 44/55`
+  - D-180 exact `38/55 → 38/55`, expected-candidate `44/55 → 44/55`
+  - aggregate delta 0, 샘플별 exact/expected-candidate 퇴행 0
+  - `Release regression passed for D-30 and D-180: bundled-mlkit-a32-20260909`
+
+처음 실행한 회귀 1회는 스크립트 기본값인 과거 API 36 에뮬레이터 CSV와 비교해 잘못된 per-sample 경고를 냈다. 이 비교는 동일 기기 계약을 위반하므로 판정에서 제외했고, 위 결과는 올바른 A32 main 기준선으로 재실행한 값이다.
+
+### 클린 설치 + 네트워크 없음 + 첫 OCR
+
+1. A32에서 비행기 모드 ON, Wi-Fi OFF를 확인했다.
+2. `ping`은 `Network is unreachable`이었다.
+3. production `app.fridgedday`는 보존한 채 별도 debug 패키지 `app.fridgedday.debug`를 최초 설치했다. `firstInstallTime=2026-09-09 09:01:42`.
+4. logcat을 초기화한 뒤 앱을 cold start했다.
+5. 사용자가 실제 날짜 `2027.02.28`인 라벨로 **첫 OCR 시도 성공**을 확인했다. 화면의 인식 날짜 문자열 자체는 별도 로그로 수집하지 않았으므로 이 1회를 정확도 측정으로 사용하지 않는다.
+6. 해당 첫 시도 구간에서 `OcrHelper: OCR variant failed`, `Waiting for the text optional module to be downloaded`, `MlKitException` 오류는 0건이었다.
+
+### Dynamite 로그 해석
+
+bundled dependency의 모델 자산(`Kore_ctc`, `Latn_ctc`)은 APK에 포함되어 있고, Google 공식 설치 경로 정의상 bundled 모델은 빌드 시 앱에 정적으로 포함된다. 동시에 현재 ML Kit runtime dependency graph에는 Play-services text-recognition 구성요소가 transitive로 포함되며, 이 A32에는 과거 unbundled 검증에서 설치된 `mlkit_ocr_korean`/`mlkit_ocr_common` Dynamite 모듈도 남아 있어 runtime 선택 로그가 발생했다.
+
+따라서 이번 수락 조건은 **"Dynamite 로그가 없어야 한다"가 아니라 "bundled 모델을 패키징한 clean app install이 실제 네트워크 없이 첫 OCR을 수행하고 optional-module 대기 오류를 내지 않는다"**이다. Google Play services 전체 데이터를 지우는 파괴적 검증은 수행하지 않았다.
+
+### 현재 남은 한계
+
+- 이번 오프라인 수동 확인은 A32/API 33 단일 기기, 실제 라벨 1회다. 정확도 일반화 근거가 아니라 첫 실행 가용성 확인이다.
+- Release APK는 R8 빌드·모델 패키징·권한·비공개자료 제외까지 확인했지만 로컬 산출물이 unsigned라 해당 APK 자체를 adb 설치하지 않았다. 기능 경로는 동일 dependency의 signed debug 패키지로 검증했다.
+- 새 bundled 후보는 아직 merge·원스토어 배포되지 않았다.
 ## 재현 방법
 
 ```powershell
